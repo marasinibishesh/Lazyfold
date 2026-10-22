@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+# local evaluation output and demo folders
+results/*.local.json
+demo-downloads/
+.slothfile/

@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SlothFile</title>
+<style nonce="{{NONCE}}">
+:root {
+  --bg: #f6f4ef; --panel: #ffffff; --ink: #24211c; --muted: #6d675d; --line: #e4dfd5;
+  --accent: #4f6f52; --accent-ink: #ffffff; --accent-soft: #e5ede3; --warn: #9a5b13; --warn-soft: #fbf0e1;
+  --bad: #a33a2b; --bad-soft: #f8e5e1; --chip: #efebe3; --focus: #2f6fd6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #171614; --panel: #211f1c; --ink: #ece8e1; --muted: #a39d92; --line: #36332e;
+    --accent: #8fb38f; --accent-ink: #10140f; --accent-soft: #263226; --warn: #e3a95c; --warn-soft: #33281a;
+    --bad: #ef8d7e; --bad-soft: #3a2320; --chip: #2c2a26; --focus: #7aa7ff;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 24px 16px 120px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+h1 { font-size: 24px; margin: 0; letter-spacing: -0.01em; }
+h1 small { display: block; font-size: 14px; font-weight: 400; color: var(--muted); }
+h2 { font-size: 17px; margin: 0 0 12px; }
+h3 { font-size: 15px; margin: 16px 0 8px; }
+nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+nav.tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--muted); }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.chip { background: var(--chip); color: var(--muted); border-radius: 999px; padding: 4px 10px; font-size: 13px; white-space: nowrap; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+input[type=text], input[type=number], input[type=time], select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+input[type=text].grow { flex: 1 1 320px; min-width: 0; }
+button { font: inherit; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 8px 14px; cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.danger { background: var(--bad); color: #fff; border-color: var(--bad); font-weight: 600; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+label.toggle { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); }
+.hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.hidden { display: none !important; }
+.mt12 { margin-top: 12px; }
+.between { justify-content: space-between; }
+.end { justify-content: flex-end; }
+.flush { margin-top: 0; }
+.bar { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; margin-top: 12px; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.group { border-top: 1px solid var(--line); padding: 10px 0 4px; }
+.group-head { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.group-head .count { color: var(--muted); font-weight: 400; }
+.item { display: grid; grid-template-columns: 24px 1fr auto; gap: 4px 10px; padding: 8px 0 8px 4px; border-bottom: 1px dashed var(--line); }
+.item:last-child { border-bottom: 0; }
+.names { min-width: 0; overflow-wrap: anywhere; }
+.names .arrow { color: var(--muted); padding: 0 4px; }
+.names input { width: 100%; margin-top: 4px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
+.side { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.side select { font-size: 13px; padding: 3px 6px; max-width: 190px; }
+.why { grid-column: 2 / 4; color: var(--muted); font-size: 13px; }
+.pill { font-size: 12px; border-radius: 999px; padding: 2px 8px; white-space: nowrap; background: var(--accent-soft); color: var(--accent); height: fit-content; }
+.pill.mid { background: var(--warn-soft); color: var(--warn); }
+.badge { font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px; color: var(--muted); }
+.kept .item, .simple .item { grid-template-columns: 1fr; }
+.kept .why, .simple .why { grid-column: 1; }
+.recycle .item { grid-template-columns: 24px 1fr; }
+.recycle .why { grid-column: 2; }
+.notice { border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
+.notice.warn { background: var(--warn-soft); color: var(--warn); }
+.notice.bad { background: var(--bad-soft); color: var(--bad); }
+.notice.ok { background: var(--accent-soft); color: var(--accent); }
+footer.actions { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); padding: 12px 16px; }
+footer.actions .row { max-width: 980px; margin: 0 auto; justify-content: space-between; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; }
+td.path { overflow-wrap: anywhere; }
+td.num { text-align: right; white-space: nowrap; }
+details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.cat { display: grid; grid-template-columns: 24px 1fr auto; gap: 2px 10px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+.cat .why, .cat details { grid-column: 2 / 4; }
+.big { font-size: 22px; font-weight: 600; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 16px; }
+label.numfield { display: flex; gap: 10px; align-items: center; justify-content: space-between; color: var(--muted); }
+label.numfield input { width: 88px; flex: none; }
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); max-width: 480px; width: calc(100% - 32px); }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+@media (max-width: 600px) { .item { grid-template-columns: 24px 1fr; } .item .side { grid-column: 2; align-items: flex-start; } .why { grid-column: 2; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>SlothFile <small>Do the tedious tidying for you, safely.</small></h1>
+    <span class="chip" id="privacy">Runs on this computer only</span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="organize" aria-selected="true">Organize</button>
+    <button role="tab" data-tab="cleanup" aria-selected="false">Storage cleanup</button>
+    <button role="tab" data-tab="auto" aria-selected="false">Automation &amp; settings</button>
+    <button role="tab" data-tab="summary" aria-selected="false">Summary</button>
+  </nav>
+
+  <div id="notice" class="notice hidden" role="status"></div>
+
+  <!-- ============================== ORGANIZE ============================== -->
+  <section data-panel="organize">
+    <div id="pending-banner" class="notice warn hidden"></div>
+    <section class="card" id="step-folder">
+      <h2>1. Choose one folder</h2>
+      <div class="row">
+        <input type="text" class="grow" id="folder" placeholder="C:\Users\you\Downloads" aria-label="Folder to tidy" spellcheck="false">
+        <button id="pick">Browse…</button>
+      </div>
+      <div class="row mt12 between">
+        <label class="toggle"><input type="checkbox" id="use-model"> <span id="model-label">Use local Gemma model for documents</span></label>
+        <button class="primary" id="preview">Preview plan</button>
+      </div>
+      <p class="hint">Scanning only reads files. Only the top level of the folder is considered; subfolders, hidden files and
+        anything suspicious are left alone. Nothing moves until you approve.</p>
+      <div class="bar hidden" id="bar"><div></div></div>
+      <p class="hint hidden" id="progress-text"></p>
+    </section>
+
+    <section class="card hidden" id="step-plan">
+      <h2>2. Review the plan</h2>
+      <div class="summary" id="summary"></div>
+      <p class="hint flush">Change a file's folder with the menu on the right: after the same correction twice, SlothFile remembers.</p>
+      <div id="groups"></div>
+    </section>
+
+    <section class="card hidden" id="step-result">
+      <h2>3. Done</h2>
+      <div id="result"></div>
+    </section>
+
+    <section class="card">
+      <h2>History</h2>
+      <p class="hint flush">Every run is recorded in a journal. Undo puts files back where they were and never overwrites anything.</p>
+      <div id="history"></div>
+    </section>
+  </section>
+
+  <!-- ============================== CLEANUP ============================== -->
+  <section data-panel="cleanup" class="hidden">
+    <section class="card">
+      <h2>Storage cleanup</h2>
+      <p class="hint flush">Finds temporary files and caches in your user folders (the safe version of Windows+R → <code>%temp%</code>).
+        Only files older than a day, of known temporary types, in known cache folders are offered. Personal-looking and
+        unknown files are always kept. Nothing is removed until you choose and confirm.</p>
+      <div class="row mt12"><button class="primary" id="clean-scan">Scan for reclaimable space</button></div>
+      <div class="bar hidden" id="clean-bar"><div></div></div>
+    </section>
+
+    <section class="card hidden" id="clean-results">
+      <div class="row between">
+        <div><div class="big" id="clean-total"></div><div class="hint flush" id="clean-sub"></div></div>
+        <div class="row">
+          <label class="toggle"><input type="radio" name="clean-mode" value="recycle" checked> Move to Recycle Bin (recoverable)</label>
+          <label class="toggle"><input type="radio" name="clean-mode" value="delete"> Delete permanently</label>
+        </div>
+      </div>
+      <div id="clean-cats" class="mt12"></div>
+      <details class="mt12" id="clean-protected"><summary></summary><div></div></details>
+      <div class="row mt12 end"><button class="primary" id="clean-go">Clean selected files</button></div>
+      <div id="clean-outcome" class="mt12"></div>
+    </section>
+
+    <section class="card">
+      <h2>Recycle Bin</h2>
+      <p class="hint flush" id="bin-info">Scan to see how much the Recycle Bin holds.</p>
+      <div class="row mt12"><button class="danger" id="bin-empty" disabled>Empty Recycle Bin…</button></div>
+      <p class="hint">Emptying is permanent. SlothFile asks separately and never does it as part of another action.</p>
+    </section>
+
+    <section class="card">
+      <h2>What SlothFile deliberately doesn't touch</h2>
+      <p class="hint flush"><b>C:\Windows\Temp</b> and <b>Windows Update</b> files need administrator rights. Use Windows' own
+        <i>Settings → System → Storage → Temporary files</i> for those. <b>Prefetch</b> is not clutter: clearing it makes apps start
+        slower. SlothFile never asks for administrator rights.</p>
+    </section>
+  </section>
+
+  <!-- ============================== AUTOMATION ============================== -->
+  <section data-panel="auto" class="hidden">
+    <section class="card">
+      <h2>Do it for me</h2>
+      <p class="hint flush">The automatic run moves only the kinds of file you trust below, and only when the rules are very sure.
+        Documents and anything the AI influenced always wait for your review. Every automatic run can be undone from History.</p>
+      <div class="row mt12">
+        <button class="primary" id="auto-now">Tidy the chosen folder automatically now</button>
+      </div>
+      <div id="auto-outcome" class="hint"></div>
+      <h3>Schedule</h3>
+      <div class="row">
+        <span>Every day at</span><input type="time" id="sched-at" value="20:00" aria-label="Time">
+        <button id="sched-add">Schedule the chosen folder</button>
+        <button id="sched-summary">Weekly summary notification (Sundays 18:00)</button>
+      </div>
+      <div id="sched-list" class="mt12"></div>
+      <p class="hint">Watching a folder continuously: run <code>slothfile watch "C:\path\to\Downloads"</code> in a terminal.</p>
+      <h3>Shortcuts</h3>
+      <div class="grid2">
+        <label class="toggle"><input type="checkbox" id="ctx-menu"> "Tidy with SlothFile" in the Explorer right-click menu</label>
+        <label class="toggle"><input type="checkbox" id="run-alias"> Open SlothFile from Windows+R by typing <code>slothfile</code></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Settings</h2>
+      <div class="grid2" id="settings-form"></div>
+      <h3>Moved automatically without asking</h3>
+      <div class="grid2" id="settings-cats"></div>
+      <div class="row mt12 end"><button class="primary" id="settings-save">Save settings</button></div>
+    </section>
+
+    <section class="card">
+      <h2>What SlothFile learned from you</h2>
+      <div id="learned"></div>
+    </section>
+  </section>
+
+  <!-- ============================== SUMMARY ============================== -->
+  <section data-panel="summary" class="hidden">
+    <section class="card">
+      <h2>This week</h2>
+      <p id="summary-text"></p>
+      <div id="summary-table"></div>
+    </section>
+  </section>
+</main>
+
+<footer class="actions hidden" id="actions">
+  <div class="row">
+    <span id="selected-count"></span>
+    <div class="row">
+      <button id="cancel">Cancel</button>
+      <button class="primary" id="approve">Move files</button>
+    </div>
+  </div>
+</footer>
+
+<dialog id="confirm">
+  <h2 id="confirm-title">Are you sure?</h2>
+  <p id="confirm-body"></p>
+  <div id="confirm-typed" class="hidden"><p class="hint flush" id="confirm-typed-label"></p>
+    <input type="text" id="confirm-input" autocomplete="off" spellcheck="false" aria-label="Confirmation word"></div>
+  <div class="row end mt12">
+    <button id="confirm-no">Go back</button>
+    <button class="primary" id="confirm-yes">Yes</button>
+  </div>
+</dialog>
+
+<script nonce="{{NONCE}}">
+"use strict";
+const TOKEN = new URLSearchParams(location.search).get("t") || "";
+history.replaceState(null, "", "/");  // keep the token out of the visible URL
+const $ = (id) => document.getElementById(id);
+let plan = null, categories = {}, settings = null, cleanReport = null;
+
+function el(tag, props = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else e[k] = v;
+  }
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+const bytes = (n) => { const u = ["bytes", "KB", "MB", "GB", "TB"]; let i = 0; n = Number(n) || 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; } return (i ? n.toFixed(1) : n) + " " + u[i]; };
+
+async function api(path, body) {
+  const opts = { headers: { "X-SlothFile-Token": TOKEN } };
+  if (body !== undefined) {
+    opts.method = "POST";
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(body);
+  }
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({ error: "bad response" }));
+  if (!r.ok) { const err = new Error(data.error || r.statusText); err.data = data; throw err; }
+  return data;
+}
+async function waitJob(id, onTick) {
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 400));
+    const j = await api("/api/job/" + id);
+    if (onTick) onTick(j);
+    if (j.state === "error") throw new Error(j.error);
+    if (j.state === "done") return j;
+  }
+}
+
+function notice(kind, text, action) {
+  const n = $("notice");
+  n.className = "notice " + kind;
+  n.replaceChildren(el("span", { text }));
+  if (action) n.append(" ", action);
+  n.classList.toggle("hidden", !text);
+}
+function handleError(e) {
+  if (e.data && e.data.needs_recovery) {
+    const btn = el("button", { text: "Recover now" });
+    btn.onclick = async () => {
+      try {
+        const r = await api("/api/recover", { folder: $("folder").value });
+        notice("ok", `Recovered ${r.reports.length} interrupted run(s). The journal now matches the disk; you can undo them from History.`);
+        loadHistory();
+      } catch (e2) { notice("bad", e2.message); }
+    };
+    notice("warn", e.message + " SlothFile will check every file against the journal before continuing.", btn);
+  } else {
+    notice("bad", e.message);
+  }
+}
+
+// Generic confirmation; `word` makes the user type it (for irreversible actions).
+function confirmDialog({ title, body, yes = "Yes", danger = false, word = null }) {
+  return new Promise((resolve) => {
+    $("confirm-title").textContent = title;
+    $("confirm-body").textContent = body;
+    $("confirm-yes").textContent = yes;
+    $("confirm-yes").className = danger ? "danger" : "primary";
+    $("confirm-typed").classList.toggle("hidden", !word);
+    $("confirm-input").value = "";
+    $("confirm-yes").disabled = !!word;
+    if (word) {
+      $("confirm-typed-label").textContent = `Type ${word} to confirm.`;
+      $("confirm-input").oninput = () => { $("confirm-yes").disabled = $("confirm-input").value.trim() !== word; };
+    }
+    const done = (v) => { $("confirm").close(); resolve(v); };
+    $("confirm-yes").onclick = () => done(true);
+    $("confirm-no").onclick = () => done(false);
+    $("confirm").oncancel = () => resolve(false);
+    $("confirm").showModal();
+  });
+}
+
+// ---------------------------------------------------------------- tabs
+document.querySelectorAll("nav.tabs button").forEach((b) => b.onclick = () => showTab(b.dataset.tab));
+function showTab(name) {
+  document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+  document.querySelectorAll("[data-panel]").forEach((p) => p.classList.toggle("hidden", p.dataset.panel !== name));
+  $("actions").classList.toggle("hidden", !(name === "organize" && plan));
+  if (name === "auto") loadAutomation();
+  if (name === "summary") loadSummary();
+}
+
+// ---------------------------------------------------------------- organize
+async function init() {
+  try {
+    const s = await api("/api/state");
+    if (s.initial_folder) $("folder").value = s.initial_folder;
+    renderHistory(s.runs);
+    const st = await api("/api/settings");
+    settings = st.settings; categories = st.categories;
+    const m = await api("/api/model");
+    $("use-model").checked = m.available && settings.use_model;
+    $("use-model").disabled = !m.available;
+    $("model-label").textContent = m.available
+      ? `Use local Gemma model for documents (${m.status})`
+      : `Local model unavailable - rules only (${m.status})`;
+    const a = await api("/api/automation");
+    showPending(a.pending);
+  } catch (e) { handleError(e); }
+}
+
+function showPending(p) {
+  const b = $("pending-banner");
+  if (!p || !p.waiting) { b.classList.add("hidden"); return; }
+  const btn = el("button", { text: "Review them" });
+  btn.onclick = async () => {
+    try { plan = await api("/api/plan-get", { plan_id: p.plan_id }); $("folder").value = p.folder; renderPlan(); }
+    catch (e) { handleError(e); }
+  };
+  b.replaceChildren(el("span", { text: `The automatic run left ${p.waiting} file(s) in ${p.folder} for you to review. ` }), btn);
+  b.classList.remove("hidden");
+}
+
+$("pick").onclick = async () => {
+  try { const r = await api("/api/pick-folder", {}); if (r.folder) $("folder").value = r.folder; }
+  catch (e) { handleError(e); }
+};
+
+$("preview").onclick = async () => {
+  notice("", "");
+  $("step-result").classList.add("hidden");
+  $("preview").disabled = true;
+  $("bar").classList.remove("hidden");
+  $("progress-text").classList.remove("hidden");
+  $("progress-text").textContent = "Scanning (read-only)…";
+  try {
+    const { job } = await api("/api/plan", { folder: $("folder").value, use_model: $("use-model").checked });
+    const j = await waitJob(job, (j) => {
+      const pct = j.total ? Math.round((100 * j.done) / j.total) : 5;
+      $("bar").firstElementChild.style.width = pct + "%";
+      if (j.total) $("progress-text").textContent = `Analysing ${j.done} of ${j.total}: ${j.current}`;
+    });
+    plan = j.plan;
+    renderPlan();
+  } catch (e) { handleError(e); }
+  finally {
+    $("preview").disabled = false;
+    $("bar").classList.add("hidden");
+    $("progress-text").classList.add("hidden");
+  }
+};
+
+function confPill(c) {
+  return el("span", { class: "pill" + (c < 0.8 ? " mid" : ""), text: Math.round(c * 100) + "% sure", title: "confidence" });
+}
+function folderSelect(p) {
+  const s = el("select", { ariaLabel: "Folder for " + p.rel_path });
+  s.dataset.rel = p.rel_path;
+  s.className = "override";
+  for (const [key, label] of Object.entries(categories)) {
+    if (key === "duplicates" && p.category !== "duplicates") continue;
+    s.append(el("option", { value: key, text: label, selected: key === p.category }));
+  }
+  s.append(el("option", { value: "keep", text: "Leave it where it is" }));
+  s.dataset.orig = p.category;
+  s.onchange = () => {
+    const box = document.querySelector(`input[type=checkbox][data-rel="${CSS.escape(p.rel_path)}"]`);
+    if (box) { box.checked = s.value !== "keep"; updateCount(); }
+  };
+  return s;
+}
+
+function renderPlan() {
+  const moves = plan.proposals.filter((p) => p.action === "move");
+  const recycles = plan.proposals.filter((p) => p.action === "recycle");
+  const keeps = plan.proposals.filter((p) => p.action === "keep");
+  const groups = {};
+  for (const p of moves) {
+    const dir = p.dest_rel.split(/[\\/]/).slice(0, -1).join(" › ");
+    (groups[dir] ||= []).push(p);
+  }
+  const s = plan.scan_stats || {};
+  $("summary").replaceChildren(
+    el("span", { class: "chip", text: `${moves.length} to organize` }),
+    recycles.length ? el("span", { class: "chip", text: `${recycles.length} old installer(s) could go` }) : null,
+    el("span", { class: "chip", text: `${keeps.length} left untouched` }),
+    el("span", { class: "chip", text: `${s.folders_untouched || 0} subfolders ignored` }),
+    el("span", { class: "chip", text: `Engine: ${s.model_status || "rules"}` }),
+    s.ocr_files ? el("span", { class: "chip", text: `OCR read ${s.ocr_files} file(s)` }) : null,
+  );
+  const wrap = $("groups");
+  wrap.replaceChildren();
+  for (const dir of Object.keys(groups).sort()) {
+    const items = groups[dir];
+    const all = el("input", { type: "checkbox", checked: items.every((p) => p.approved), ariaLabel: "Select all in " + dir });
+    const g = el("div", { class: "group" }, el("div", { class: "group-head" }, all, el("span", { text: dir }),
+      el("span", { class: "count", text: `· ${items.length}` })));
+    const boxes = [];
+    for (const p of items) {
+      const box = el("input", { type: "checkbox", checked: p.approved, ariaLabel: "Move " + p.rel_path });
+      box.dataset.rel = p.rel_path;
+      box.className = "move-box";
+      box.onchange = updateCount;
+      boxes.push(box);
+      const names = el("div", { class: "names" }, el("span", { text: p.rel_path }));
+      if (p.new_name) {
+        const stem = p.new_name.replace(/\.[^.]*$/, "");
+        const input = el("input", { type: "text", value: stem, ariaLabel: "New name for " + p.rel_path });
+        input.dataset.rel = p.rel_path;
+        input.dataset.orig = stem;
+        input.className = "rename";
+        names.append(el("span", { class: "arrow", text: "→ renamed to" }), input);
+      }
+      if (p.engine === "rules+model") names.firstChild.after(el("span", { class: "badge", text: "Gemma" }));
+      if (p.engine === "rules+learned") names.firstChild.after(el("span", { class: "badge", text: "learned" }));
+      if (p.near_duplicate) names.firstChild.after(el("span", { class: "badge", text: "similar copy" }));
+      else if (p.duplicate_of) names.firstChild.after(el("span", { class: "badge", text: "duplicate" }));
+      if (p.extract_to) names.firstChild.after(el("span", { class: "badge", text: "will unpack" }));
+      g.append(el("div", { class: "item" }, box, names, el("div", { class: "side" }, confPill(p.confidence), folderSelect(p)),
+        el("div", { class: "why", text: p.reasons.join(" · ") })));
+    }
+    all.onchange = () => { boxes.forEach((b) => (b.checked = all.checked)); updateCount(); };
+    wrap.append(g);
+  }
+  if (recycles.length) {
+    const g = el("div", { class: "group recycle" }, el("div", { class: "group-head" },
+      el("span", { text: "Old installers: send to the Recycle Bin?" }), el("span", { class: "count", text: `· ${recycles.length}` })));
+    g.append(el("p", { class: "hint flush", text: "Unticked by default. If you tick any, SlothFile asks separately before recycling. You can restore them from the Recycle Bin." }));
+    for (const p of recycles) {
+      const box = el("input", { type: "checkbox", checked: false, ariaLabel: "Recycle " + p.rel_path });
+      box.dataset.rel = p.rel_path;
+      box.className = "recycle-box";
+      box.onchange = updateCount;
+      g.append(el("div", { class: "item" }, box, el("div", { class: "names", text: p.rel_path }),
+        el("div", { class: "why", text: p.reasons.join(" · ") })));
+    }
+    wrap.append(g);
+  }
+  if (keeps.length) {
+    const g = el("div", { class: "group kept" }, el("div", { class: "group-head" },
+      el("span", { text: "Left untouched" }), el("span", { class: "count", text: `· ${keeps.length}` })));
+    for (const p of keeps) {
+      g.append(el("div", { class: "item" }, el("div", { class: "names", text: p.rel_path }),
+        el("div", { class: "why", text: p.reasons.join(" · ") })));
+    }
+    wrap.append(g);
+  }
+  $("step-plan").classList.remove("hidden");
+  $("actions").classList.remove("hidden");
+  updateCount();
+  $("step-plan").scrollIntoView({ behavior: "smooth" });
+}
+
+const selected = () => [...document.querySelectorAll("#groups .move-box")].filter((b) => b.checked).map((b) => b.dataset.rel);
+const selectedRecycle = () => [...document.querySelectorAll("#groups .recycle-box")].filter((b) => b.checked).map((b) => b.dataset.rel);
+
+function updateCount() {
+  const n = selected().length, r = selectedRecycle().length;
+  $("selected-count").textContent = `${n} file${n === 1 ? "" : "s"} to move` + (r ? `, ${r} to the Recycle Bin` : "");
+  $("approve").textContent = r ? `Move ${n} & recycle ${r}` : `Move ${n} file${n === 1 ? "" : "s"}`;
+  $("approve").disabled = n + r === 0;
+}
+
+$("cancel").onclick = () => {
+  plan = null;
+  $("step-plan").classList.add("hidden");
+  $("actions").classList.add("hidden");
+  notice("ok", "Plan discarded. Nothing was changed.");
+};
+
+$("approve").onclick = async () => {
+  const n = selected().length, recycle = selectedRecycle();
+  const ok = await confirmDialog({ title: `Move ${n} file${n === 1 ? "" : "s"}?`,
+    body: `Files will be moved into folders inside ${plan.root}. Nothing is deleted or overwritten, every step is journaled, and you can undo the whole run from History.`,
+    yes: "Yes, move them" });
+  if (!ok) return;
+  let allowRecycle = false;
+  if (recycle.length) {
+    allowRecycle = await confirmDialog({ title: `Also send ${recycle.length} installer(s) to the Recycle Bin?`,
+      body: `${recycle.join(", ")}. They can be restored from the Recycle Bin until you empty it.`, yes: "Yes, recycle them" });
+  }
+  const renames = {}, overrides = {};
+  document.querySelectorAll("#groups input.rename").forEach((i) => {
+    if (i.value.trim() && i.value.trim() !== i.dataset.orig) renames[i.dataset.rel] = i.value.trim();
+  });
+  document.querySelectorAll("#groups select.override").forEach((s) => {
+    if (s.value !== s.dataset.orig) overrides[s.dataset.rel] = s.value;
+  });
+  $("approve").disabled = true;
+  try {
+    const r = await api("/api/apply", { plan_id: plan.plan_id, approved: selected().concat(allowRecycle ? recycle : []),
+      renames, overrides, allow_recycle: allowRecycle });
+    showResult(r);
+    plan = null;
+    $("step-plan").classList.add("hidden");
+    $("actions").classList.add("hidden");
+    $("pending-banner").classList.add("hidden");
+    loadHistory();
+  } catch (e) { handleError(e); $("approve").disabled = false; }
+};
+
+function showResult(r) {
+  const s = r.summary;
+  const box = $("result");
+  box.replaceChildren(el("p", { text: `Moved ${s.moved} file(s)` + (s.recycled ? `, sent ${s.recycled} to the Recycle Bin` : "") +
+    `. Skipped ${s.skipped}, failed ${s.failed}.` }));
+  const notes = r.results.filter((x) => (x.status !== "moved" && x.status !== "recycled") || x.detail);
+  if (notes.length) {
+    const t = el("table", {}, el("tr", {}, el("th", { text: "File" }), el("th", { text: "Status" }), el("th", { text: "Details" })));
+    for (const p of notes) t.append(el("tr", {}, el("td", { class: "path", text: p.src }), el("td", { text: p.status }), el("td", { text: p.detail })));
+    box.append(t);
+  }
+  const undo = el("button", { text: "Undo this run" });
+  undo.onclick = () => doUndo(r.run_id);
+  box.append(el("div", { class: "row mt12" }, undo));
+  $("step-result").classList.remove("hidden");
+  $("step-result").scrollIntoView({ behavior: "smooth" });
+}
+
+async function doUndo(runId) {
+  try {
+    const r = await api("/api/undo", { run_id: runId });
+    const s = r.summary;
+    const skipped = r.results.filter((x) => x.status !== "restored");
+    notice(skipped.length ? "warn" : "ok",
+      `Restored ${s.restored} file(s) to where they were.` +
+      (skipped.length ? ` ${skipped.length} could not be restored safely: ` + skipped.map((x) => `${x.src} (${x.detail})`).join("; ") +
+        ". Undo again later to retry." : ""));
+    $("step-result").classList.add("hidden");
+    loadHistory();
+  } catch (e) { handleError(e); }
+}
+
+async function loadHistory() {
+  try { renderHistory((await api("/api/state")).runs); } catch (e) { handleError(e); }
+}
+function renderHistory(runs) {
+  const h = $("history");
+  if (!runs.length) { h.replaceChildren(el("p", { class: "hint", text: "No runs yet." })); return; }
+  const t = el("table", {}, el("tr", {}, el("th", { text: "When" }), el("th", { text: "Folder" }),
+    el("th", { text: "Organized" }), el("th", { text: "" })));
+  for (const r of runs) {
+    const active = r.moved > 0 || r.recycled > 0;
+    const btn = el("button", { text: active ? "Undo" : "Undone", disabled: !active || !r.complete });
+    btn.onclick = () => doUndo(r.run_id);
+    t.append(el("tr", {}, el("td", { text: (r.started || "").replace("T", " ").slice(0, 16) }),
+      el("td", { class: "path", text: r.root }),
+      el("td", { text: r.complete ? `${r.moved} still in place` + (r.recycled ? `, ${r.recycled} recycled` : "") + `, ${r.undone} undone`
+        : "interrupted - recover first" }),
+      el("td", {}, btn)));
+  }
+  h.replaceChildren(t);
+}
+
+// ---------------------------------------------------------------- storage cleanup
+$("clean-scan").onclick = async () => {
+  $("clean-scan").disabled = true;
+  $("clean-bar").classList.remove("hidden");
+  $("clean-bar").firstElementChild.style.width = "30%";
+  notice("", "");
+  try {
+    const { job } = await api("/api/cleanup/scan", {});
+    const j = await waitJob(job);
+    cleanReport = j.result;
+    renderCleanup();
+  } catch (e) { handleError(e); }
+  finally { $("clean-scan").disabled = false; $("clean-bar").classList.add("hidden"); }
+};
+
+function renderCleanup() {
+  const r = cleanReport;
+  $("clean-results").classList.remove("hidden");
+  const wrap = $("clean-cats");
+  wrap.replaceChildren();
+  for (const c of r.categories) {
+    if (!c.count && !c.blocked_reason) continue;
+    const box = el("input", { type: "checkbox", checked: c.selected_by_default && !c.blocked_reason && c.count > 0,
+      disabled: !!c.blocked_reason || !c.count, ariaLabel: "Clean " + c.label });
+    box.dataset.key = c.key;
+    box.onchange = updateCleanTotal;
+    const det = el("details", {}, el("summary", { text: `Largest files (${c.count} in total${c.truncated ? ", list truncated" : ""})` }));
+    const t = el("table");
+    for (const f of c.largest) t.append(el("tr", {}, el("td", { class: "path", text: f.path }), el("td", { class: "num", text: bytes(f.size) })));
+    det.append(t);
+    wrap.append(el("div", { class: "cat" }, box,
+      el("div", {}, el("b", { text: c.label }), el("span", { class: "badge", text: c.selected_by_default ? "suggested" : "optional" })),
+      el("span", { class: "chip", text: `${bytes(c.total_bytes)} · ${c.count} files` }),
+      el("div", { class: "why", text: c.blocked_reason ? "Blocked: " + c.blocked_reason : c.why }), det));
+  }
+  if (!wrap.children.length) wrap.append(el("p", { class: "hint", text: "Nothing to clean right now." }));
+  const p = r.protected;
+  const pd = $("clean-protected");
+  pd.querySelector("summary").textContent = `Kept for safety: ${p.count} file(s), ${bytes(p.bytes)} (personal-looking, unknown or unusual files)`;
+  const pt = el("table");
+  for (const [reason, n] of Object.entries(p.by_reason || {})) pt.append(el("tr", {}, el("td", { text: reason }), el("td", { class: "num", text: String(n) })));
+  pd.querySelector("div").replaceChildren(pt);
+  $("bin-info").textContent = `The Recycle Bin holds ${bytes(r.recycle_bin.bytes)} in ${r.recycle_bin.items} item(s). Free space on the system drive: ${bytes(r.disk_free)}.`;
+  $("bin-empty").disabled = !r.recycle_bin.items;
+  $("clean-outcome").replaceChildren();
+  updateCleanTotal();
+}
+
+const cleanSelected = () => [...document.querySelectorAll("#clean-cats input[type=checkbox]")].filter((b) => b.checked && !b.disabled).map((b) => b.dataset.key);
+function updateCleanTotal() {
+  const keys = new Set(cleanSelected());
+  const total = cleanReport.categories.filter((c) => keys.has(c.key)).reduce((a, c) => a + c.total_bytes, 0);
+  $("clean-total").textContent = `${bytes(total)} selected`;
+  $("clean-sub").textContent = `of ${bytes(cleanReport.reclaimable_bytes)} found in ${cleanReport.categories.length} locations`;
+  $("clean-go").disabled = keys.size === 0;
+}
+
+$("clean-go").onclick = async () => {
+  const keys = cleanSelected();
+  const mode = document.querySelector("input[name=clean-mode]:checked").value;
+  const sel = new Set(keys);
+  const total = cleanReport.categories.filter((c) => sel.has(c.key)).reduce((a, c) => a + c.total_bytes, 0);
+  const ok = mode === "delete"
+    ? await confirmDialog({ title: `Permanently delete ${bytes(total)}?`, danger: true, word: "DELETE", yes: "Delete permanently",
+        body: "These temporary files will be deleted and cannot be restored. Files that changed since the scan or are in use are skipped." })
+    : await confirmDialog({ title: `Move ${bytes(total)} to the Recycle Bin?`, yes: "Move to Recycle Bin",
+        body: "You can restore anything from the Recycle Bin. The space is freed when you empty it." });
+  if (!ok) return;
+  $("clean-go").disabled = true;
+  try {
+    const r = await api("/api/cleanup/clean", { report_id: cleanReport.report_id, categories: keys, mode,
+      confirm_permanent: mode === "delete" });
+    const where = mode === "delete" ? "deleted" : "moved to the Recycle Bin";
+    const out = $("clean-outcome");
+    out.replaceChildren(el("p", { class: "notice ok", text: `${r.removed_count} file(s), ${bytes(r.removed_bytes)} ${where}. ` +
+      `Free space: ${bytes(r.disk_free_before)} → ${bytes(r.disk_free_after)}. Skipped ${r.skipped.length}, errors ${r.errors.length}.` }));
+    const issues = r.skipped.concat(r.errors);
+    if (issues.length) {
+      const det = el("details", {}, el("summary", { text: `Why ${issues.length} file(s) were not removed` }));
+      const t = el("table");
+      for (const x of issues.slice(0, 200)) t.append(el("tr", {}, el("td", { text: x.reason }), el("td", { class: "path", text: x.path })));
+      det.append(t);
+      out.append(det);
+    }
+    $("bin-info").textContent = `The Recycle Bin now holds ${bytes(r.recycle_bin_after.bytes)} in ${r.recycle_bin_after.items} item(s).`;
+    $("bin-empty").disabled = !r.recycle_bin_after.items;
+  } catch (e) { handleError(e); }
+};
+
+$("bin-empty").onclick = async () => {
+  const ok = await confirmDialog({ title: "Empty the Recycle Bin?", danger: true, word: "EMPTY", yes: "Empty it",
+    body: "Everything in the Recycle Bin (from all apps, not just SlothFile) will be deleted permanently. This cannot be undone." });
+  if (!ok) return;
+  try {
+    const r = await api("/api/cleanup/empty-bin", { confirm: true });
+    notice("ok", `Recycle Bin emptied: freed ${bytes(r.bytes_before - r.bytes_after)}.`);
+    $("bin-info").textContent = `The Recycle Bin holds ${bytes(r.bytes_after)} in ${r.items_after} item(s).`;
+    $("bin-empty").disabled = !r.items_after;
+  } catch (e) { handleError(e); }
+};
+
+// ---------------------------------------------------------------- automation & settings
+const SETTING_LABELS = {
+  use_model: "Use the local Gemma model for documents",
+  ocr: "Read scanned PDFs and photos of documents (Windows OCR)",
+  photos_by_date: "Sort camera photos into Images/Year/Month",
+  near_duplicates: "Find similar (not identical) copies",
+  unpack_zip_archives: "Unpack safe .zip files into Archives/<name>",
+  recycle_old_installers_days: "Suggest recycling installers older than (days, 0 = never)",
+  auto_min_confidence: "Automatic run: minimum confidence (0.5–1.0)",
+  notify_min_files: "Notify when at least this many files were handled",
+};
+
+async function loadAutomation() {
+  try {
+    const [st, a, l] = await Promise.all([api("/api/settings"), api("/api/automation"), api("/api/learned")]);
+    settings = st.settings; categories = st.categories;
+    renderSettings(); renderAutomation(a); renderLearned(l.rules);
+  } catch (e) { handleError(e); }
+}
+
+function renderSettings() {
+  const f = $("settings-form");
+  f.replaceChildren();
+  for (const [k, label] of Object.entries(SETTING_LABELS)) {
+    const v = settings[k];
+    let input;
+    if (typeof v === "boolean") {
+      input = el("input", { type: "checkbox", checked: v });
+      input.dataset.key = k;
+      f.append(el("label", { class: "toggle" }, input, el("span", { text: label })));
+    } else {
+      input = el("input", { type: "number", value: v ?? 0, step: k === "auto_min_confidence" ? "0.05" : "1", min: "0" });
+      input.dataset.key = k;
+      f.append(el("label", { class: "numfield" }, el("span", { text: label }), input));
+    }
+  }
+  const c = $("settings-cats");
+  c.replaceChildren();
+  for (const [key, label] of Object.entries(categories)) {
+    const box = el("input", { type: "checkbox", checked: settings.auto_approve_categories.includes(key) });
+    box.dataset.cat = key;
+    const doc = ["finance", "travel", "career", "manuals", "documents"].includes(key);
+    c.append(el("label", { class: "toggle" }, box, el("span", { text: label + (doc ? " (documents: not recommended)" : "") })));
+  }
+}
+
+$("settings-save").onclick = async () => {
+  const changes = {};
+  document.querySelectorAll("#settings-form input").forEach((i) => {
+    const k = i.dataset.key;
+    if (i.type === "checkbox") changes[k] = i.checked;
+    else {
+      const n = Number(i.value);
+      changes[k] = k === "auto_min_confidence" ? n : Math.max(0, Math.round(n));  // 0 turns installer suggestions off
+    }
+  });
+  changes.auto_approve_categories = [...document.querySelectorAll("#settings-cats input")].filter((b) => b.checked).map((b) => b.dataset.cat);
+  try { settings = (await api("/api/settings", { changes })).settings; notice("ok", "Settings saved."); }
+  catch (e) { handleError(e); }
+};
+
+function renderAutomation(a) {
+  $("ctx-menu").checked = a.context_menu;
+  $("run-alias").checked = a.run_alias;
+  const list = $("sched-list");
+  if (!a.tasks.length) { list.replaceChildren(el("p", { class: "hint flush", text: "No scheduled runs." })); }
+  else {
+    const t = el("table", {}, el("tr", {}, el("th", { text: "Task" }), el("th", { text: "Next run" }), el("th", { text: "" })));
+    for (const task of a.tasks) {
+      const rm = el("button", { text: "Remove" });
+      rm.onclick = () => automation({ action: "remove_task", name: task.name });
+      t.append(el("tr", {}, el("td", { class: "path", text: task.name + (task.command ? " — " + task.command : "") }),
+        el("td", { text: task.next_run || task.status || "" }), el("td", {}, rm)));
+    }
+    list.replaceChildren(t);
+  }
+  showPending(a.pending);
+}
+async function automation(body) {
+  try { renderAutomation(await api("/api/automation", body)); notice("ok", "Done."); }
+  catch (e) { handleError(e); loadAutomation(); }
+}
+$("ctx-menu").onchange = () => automation({ action: "context_menu", on: $("ctx-menu").checked });
+$("run-alias").onchange = () => automation({ action: "run_alias", on: $("run-alias").checked });
+$("sched-add").onclick = () => automation({ action: "schedule_daily", folder: $("folder").value, at: $("sched-at").value });
+$("sched-summary").onclick = () => automation({ action: "schedule_summary", day: "SUN", at: "18:00" });
+$("auto-now").onclick = async () => {
+  const ok = await confirmDialog({ title: "Tidy automatically now?",
+    body: `SlothFile will move only trusted kinds of file in ${$("folder").value || "(choose a folder on the Organize tab)"}; everything else waits for your review. You can undo it from History.`,
+    yes: "Tidy now" });
+  if (!ok) return;
+  $("auto-now").disabled = true;
+  $("auto-outcome").textContent = "Working…";
+  try {
+    const { job } = await api("/api/auto", { folder: $("folder").value });
+    const r = (await waitJob(job)).result;
+    $("auto-outcome").textContent = r.error ? r.error : `Moved ${r.moved} file(s); ${r.waiting} waiting for your review on the Organize tab.`;
+    loadHistory();
+    showPending((await api("/api/automation")).pending);
+  } catch (e) { handleError(e); $("auto-outcome").textContent = ""; }
+  finally { $("auto-now").disabled = false; }
+};
+
+function renderLearned(rules) {
+  const w = $("learned");
+  if (!rules.length) {
+    w.replaceChildren(el("p", { class: "hint flush", text: "Nothing yet. When you change a file's folder in a plan (or leave the same kind of file twice), SlothFile remembers it here." }));
+    return;
+  }
+  const t = el("table", {}, el("tr", {}, el("th", { text: "When a file is…" }), el("th", { text: "SlothFile now…" }), el("th", { text: "" })));
+  for (const r of rules) {
+    const forget = el("button", { text: "Forget" });
+    forget.onclick = async () => { try { await api("/api/learned/forget", { key: r.key }); loadAutomation(); } catch (e) { handleError(e); } };
+    const [kind, value] = r.key.split(/:(.*)/s);
+    const what = kind === "host" ? `downloaded from ${value}` : `a ${value} file`;
+    const does = r.outcome === "keep" ? "leaves it where it is" : `files it in ${categories[r.outcome] || r.outcome}`;
+    t.append(el("tr", {}, el("td", { text: what }), el("td", { text: `${does} (seen ${r.support}×)` }), el("td", {}, forget)));
+  }
+  const reset = el("button", { text: "Forget everything" });
+  reset.onclick = async () => {
+    if (await confirmDialog({ title: "Forget everything SlothFile learned?", body: "Learned rules are removed. Your files are not touched." })) {
+      try { await api("/api/learned/reset", { confirm: true }); loadAutomation(); } catch (e) { handleError(e); }
+    }
+  };
+  w.replaceChildren(t, el("div", { class: "row mt12" }, reset));
+}
+
+// ---------------------------------------------------------------- summary
+async function loadSummary() {
+  try {
+    const r = await api("/api/summary");
+    $("summary-text").textContent = r.text.split("\n")[0];
+    const s = r.summary;
+    const t = el("table");
+    const rows = [["Files organized", s.files_organized], ["Files renamed", s.files_renamed], ["Runs undone", s.undone],
+      ["Temporary files cleaned", `${s.cleanup_files} (${bytes((s.cleanup_bytes.recycle || 0) + (s.cleanup_bytes.delete || 0))})`],
+      ["Recycle Bin emptied", bytes(s.recycle_bin_emptied_bytes)], ["Archives unpacked", s.archives_extracted],
+      ["Old installers recycled", s.recycled_installers]];
+    for (const [k, v] of rows) t.append(el("tr", {}, el("td", { text: k }), el("td", { class: "num", text: String(v) })));
+    for (const [folder, n] of (s.by_folder || []).slice(0, 10)) t.append(el("tr", {}, el("td", { text: "→ " + folder }), el("td", { class: "num", text: String(n) })));
+    $("summary-table").replaceChildren(t);
+  } catch (e) { handleError(e); }
+}
+
+init();
+</script>
+</body>
+</html>

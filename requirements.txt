@@ -1,0 +1,4 @@
+# Optional extras for reading PDF text and photo metadata.
+# Recommended install (from the project folder):  python -m pip install -e ".[content]"
+pypdf>=6.21.2
+pillow>=12

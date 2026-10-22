@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slothfile"
+version = "0.1.0"
+description = "Local-first, preview-first, undoable Downloads organizer with optional on-device Gemma"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+# Text from PDFs and image metadata. Without them SlothFile still works on
+# file types and names; PDF content is simply not read.
+content = ["pypdf>=6.21.2", "pillow>=12"]
+dev = ["pytest>=9"]
+
+[project.scripts]
+slothfile = "slothfile.cli:main"
+
+[tool.setuptools]
+packages = ["slothfile"]
+
+[tool.setuptools.package-data]
+slothfile = ["ui.html", "ocr.ps1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
