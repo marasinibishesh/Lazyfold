@@ -3,7 +3,6 @@
 **Tidy a messy Downloads folder and reclaim wasted disk space without doing the tedious part yourself, and without trusting an AI with your files.**
 
 > **Created by [Bishesh Marasini](https://github.com/marasinibishesh).**
-> Built for the DEV Hacktoberfest Open-Source AI Challenge, Week 3, "Slow and Steady" (October 2026).
 
 SlothFile looks at one folder you choose and reads what each file really is: its actual content, not just its extension. It proposes where every file should go and gives meaningless names like `document (3).pdf` a proper one. You see the whole plan, with the reason for every decision, **before anything happens**. Nothing moves until you approve. Every action is journaled and can be undone, even after a crash or power cut.
 
