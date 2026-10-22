@@ -124,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("recover", help="reconcile interrupted runs for a folder")
     r.add_argument("folder")
 
+    dk = sub.add_parser("desktop", help="open SlothFile in its own app window (needs the [desktop] extra)")
+    dk.add_argument("folder", nargs="?")
+
     ui = sub.add_parser("ui", help="open the local web interface")
     ui.add_argument("folder", nargs="?")
     ui.add_argument("--port", type=int, default=0)
@@ -146,6 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     s_sum.add_argument("--day", default="SUN")
     s_sum.add_argument("--at", default="18:00")
     scs.add_parser("list")
+    scs.add_parser("clear", help="remove every SlothFile scheduled task")
     s_rm = scs.add_parser("remove")
     s_rm.add_argument("name")
 
@@ -162,6 +166,7 @@ def main(argv: list[str] | None = None) -> int:
 
     si = sub.add_parser("shell-install", help='add "Tidy with SlothFile" to the Explorer right-click menu')
     si.add_argument("--run-alias", action="store_true", help='also let Windows+R open SlothFile by typing "slothfile"')
+    si.add_argument("--no-menu", action="store_true", help="skip the right-click menu (use with --run-alias)")
     sub.add_parser("shell-uninstall", help="remove the right-click menu entry and the Windows+R shortcut")
 
     cl = sub.add_parser("cleanup", help="find temporary files and caches that can be removed")
@@ -254,6 +259,10 @@ def _dispatch(args) -> int:
             _print_report(rep, "Recovered")
         return 0
 
+    if args.cmd == "desktop":
+        from .desktop import run_window
+        return run_window(args.folder)
+
     if args.cmd == "ui":
         from .web import serve
         serve(args.folder, port=args.port, open_browser=not args.no_browser)
@@ -286,6 +295,10 @@ def _dispatch(args) -> int:
         elif args.sched == "remove":
             automation.remove_task(args.name)
             print("Removed", args.name)
+        elif args.sched == "clear":
+            for t in automation.list_tasks(with_commands=False):
+                automation.remove_task(t["name"])
+                print("Removed", t["name"])
         return 0
 
     if args.cmd == "summary":
@@ -328,8 +341,9 @@ def _dispatch(args) -> int:
 
     if args.cmd == "shell-install":
         from . import automation
-        automation.install_context_menu()
-        print('Added "Tidy with SlothFile" to the right-click menu of folders.')
+        if not args.no_menu:
+            automation.install_context_menu()
+            print('Added "Tidy with SlothFile" to the right-click menu of folders.')
         if args.run_alias:
             automation.install_run_alias()
             print('Press Windows+R and type "slothfile" to open SlothFile.')

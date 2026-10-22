@@ -230,6 +230,8 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
       <div id="summary-table"></div>
     </section>
   </section>
+  <p class="hint credits">SlothFile by Bishesh Marasini · MIT License · Local AI: Gemma 4 (Apache 2.0) via Ollama ·
+    Move predictions: Built with PriorLabs-TabPFN (when installed) · Text from scans: Windows OCR</p>
 </main>
 
 <footer class="actions hidden" id="actions">
@@ -380,8 +382,16 @@ function showPending(p) {
 }
 
 $("pick").onclick = async () => {
-  try { const r = await api("/api/pick-folder", {}); if (r.folder) $("folder").value = r.folder; }
-  catch (e) { handleError(e); }
+  try {
+    // In the desktop app, use the native Windows folder dialog.
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_folder) {
+      const folder = await window.pywebview.api.pick_folder();
+      if (folder) $("folder").value = folder;
+      return;
+    }
+    const r = await api("/api/pick-folder", {});
+    if (r.folder) $("folder").value = r.folder;
+  } catch (e) { handleError(e); }
 };
 
 $("preview").onclick = async () => {
@@ -471,6 +481,11 @@ function renderPlan() {
       }
       if (p.engine === "rules+model") names.firstChild.after(el("span", { class: "badge", text: "Gemma" }));
       if (p.engine === "rules+learned") names.firstChild.after(el("span", { class: "badge", text: "learned" }));
+      if (p.accept_prob != null && (p.accept_prob >= 0.8 || p.accept_prob < 0.5)) {
+        const pct = Math.round(p.accept_prob * 100) + "%";
+        names.firstChild.after(el("span", { class: "badge", title: "Prediction from your past reviews (TabPFN)",
+          text: p.accept_prob >= 0.8 ? "likely OK " + pct : "check " + pct }));
+      }
       if (p.near_duplicate) names.firstChild.after(el("span", { class: "badge", text: "similar copy" }));
       else if (p.duplicate_of) names.firstChild.after(el("span", { class: "badge", text: "duplicate" }));
       if (p.extract_to) names.firstChild.after(el("span", { class: "badge", text: "will unpack" }));
@@ -714,6 +729,7 @@ $("bin-empty").onclick = async () => {
 // ---------------------------------------------------------------- automation & settings
 const SETTING_LABELS = {
   use_model: "Use the local Gemma model for documents",
+  use_predictor: "Predict which moves you would accept, from your past reviews (TabPFN, if installed)",
   ocr: "Read scanned PDFs and photos of documents (Windows OCR)",
   photos_by_date: "Sort camera photos into Images/Year/Month",
   near_duplicates: "Find similar (not identical) copies",

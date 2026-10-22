@@ -56,6 +56,7 @@ class Proposal:
     near_duplicate: bool = False  # similar (not identical) to another file: never pre-approved
     source_host: str | None = None  # download provenance, used to learn from corrections
     ext: str = ""
+    accept_prob: float | None = None  # predicted P(user accepts unchanged); None = no prediction
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

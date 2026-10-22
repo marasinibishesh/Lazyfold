@@ -9,3 +9,7 @@ dist/
 results/*.local.json
 demo-downloads/
 .slothfile/
+
+.venv-build/
+results_local/
+packaging/output/

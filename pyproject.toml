@@ -15,10 +15,18 @@ dependencies = []
 # Text from PDFs and image metadata. Without them SlothFile still works on
 # file types and names; PDF content is simply not read.
 content = ["pypdf>=6.21.2", "pillow>=12"]
+desktop = ["pywebview>=6.2"]
 dev = ["pytest>=9"]
+# Approval predictor (TabPFN, Prior Labs License). Install CPU torch first so
+# pip does not pull the multi-GB CUDA build:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+predict = ["tabpfn>=9.2"]
 
 [project.scripts]
 slothfile = "slothfile.cli:main"
+
+[project.gui-scripts]
+slothfile-desktop = "slothfile.desktop:main"
 
 [tool.setuptools]
 packages = ["slothfile"]

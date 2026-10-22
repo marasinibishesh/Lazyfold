@@ -49,8 +49,38 @@ def make_plan(folder: str | Path, *, model: str | None = None, threshold: float 
     if getattr(classifier, "calls", 0):
         plan.scan_stats["model_calls"] = classifier.calls
         plan.scan_stats["model_seconds"] = round(classifier.seconds, 1)
+    _attach_predictions(plan)
     save_plan(plan)
     return plan, plan.scan_stats["model_status"]
+
+
+def _attach_predictions(plan: Plan) -> None:
+    """Score moves with the optional approval predictor (TabPFN, see
+    predict.py). Any failure just leaves the plan unscored."""
+    try:
+        from . import predict
+        from .settings import load_settings
+        if not load_settings().get("use_predictor"):
+            plan.scan_stats["predictor"] = "predictor turned off in settings"
+            return
+        ok, why = predict.available()
+        if not ok:
+            plan.scan_stats["predictor"] = why
+            return
+        probs = predict.predict_accept(plan)
+        plan.scan_stats["predictor"] = predict.status()
+        for p in plan.proposals:
+            prob = (probs or {}).get(p.rel_path)
+            if prob is None:
+                continue
+            p.accept_prob = round(prob, 3)
+            pct = round(prob * 100)
+            if prob >= 0.8:
+                p.reasons = p.reasons + [f"you usually accept moves like this ({pct}%)"]
+            elif prob < 0.5:
+                p.reasons = p.reasons + [f"you often change moves like this ({pct}%) — check it"]
+    except Exception as e:  # a hint must never stop a plan
+        plan.scan_stats["predictor"] = f"predictor error ({type(e).__name__})"
 
 
 def save_plan(plan: Plan) -> Path:
@@ -182,6 +212,11 @@ def execute(plan_id: str, approved: set[str] | None = None, renames: dict[str, s
     save_plan(plan)
     report = apply_plan(plan, allow_recycle=allow_recycle)
     _learn(original, approved, overrides, report)
+    try:
+        from . import reviewlog
+        reviewlog.record(original, report, approved, overrides)
+    except Exception:  # the review log feeds a hint; it must never block a run
+        pass
     return report
 
 

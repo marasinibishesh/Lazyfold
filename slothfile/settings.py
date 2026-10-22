@@ -31,6 +31,7 @@ DEFAULTS: dict[str, Any] = {
     "ocr": True,
     "notify_min_files": 5,
     "use_model": True,
+    "use_predictor": True,
     "ollama_path": None,
 }
 

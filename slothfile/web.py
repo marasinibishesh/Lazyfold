@@ -221,6 +221,9 @@ def make_handler(app: App):
                 return self._json(500, {"error": f"unexpected error: {type(e).__name__}"})
 
         def _route(self, path: str, body: dict):
+            if path == "/api/pick-folder" and getattr(sys, "frozen", False):
+                # The installed app uses the native dialog (window.pywebview.api); there is no python.exe here.
+                return self._json(200, {"folder": None})
             if path == "/api/pick-folder":
                 # -I: isolated mode, so a planted tkinter.py in the working dir is never imported.
                 r = subprocess.run([sys.executable, "-I", "-c", _PICK_FOLDER], capture_output=True, text=True,

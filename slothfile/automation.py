@@ -191,7 +191,11 @@ class _RunLock:
 
 def trusted(p, settings: dict) -> bool:
     """Would this proposal be moved without review? Model-influenced
-    decisions always wait, whatever the category."""
+    decisions always wait, whatever the category, and so do moves the
+    approval predictor thinks this user would probably change."""
+    prob = getattr(p, "accept_prob", None)
+    if prob is not None and prob < settings["auto_min_confidence"]:
+        return False
     return (p.action == "move" and p.category in settings["auto_approve_categories"]
             and p.confidence >= settings["auto_min_confidence"] and p.engine == "rules")
 
@@ -331,12 +335,30 @@ def watch(folder: str | Path, *, interval: float = 30, settle_seconds: float = 1
 # Launch commands
 
 
+def frozen() -> bool:
+    """True inside the installed SlothFile.exe (PyInstaller build)."""
+    return bool(getattr(sys, "frozen", False))
+
+
 def gui_python(python_exe: str | None = None) -> str:
     """pythonw.exe next to the interpreter (no console window), else the
-    interpreter itself."""
+    interpreter itself. In the installed app: SlothFile.exe itself."""
+    if frozen() and python_exe is None:
+        # Prefer the windowless SlothFile.exe even when running from SlothFileCLI.exe,
+        # so scheduled runs and the right-click menu never flash a console.
+        gui = Path(sys.executable).with_name("SlothFile.exe")
+        return str(gui if gui.is_file() else sys.executable)
     exe = Path(python_exe or sys.executable)
     w = exe.with_name("pythonw.exe")
     return str(w if w.is_file() else exe)
+
+
+def launch_prefix(python_exe: str | None = None) -> str:
+    """How to start SlothFile from Task Scheduler, the right-click menu or
+    Win+R: the installed exe directly, or pythonw -m slothfile for a source checkout."""
+    if frozen() and python_exe is None:
+        return _quote_arg(gui_python())
+    return f"{_quote_arg(gui_python(python_exe))} -m slothfile"
 
 
 def _quote_arg(path: str) -> str:
@@ -387,10 +409,9 @@ def _no_percent(path: str) -> None:
 
 
 def _tr(args: str, python_exe: str | None = None) -> str:
-    py = gui_python(python_exe)
-    _no_percent(py)
+    _no_percent(gui_python(python_exe))
     _no_percent(args)
-    tr = f"{_quote_arg(py)} -m slothfile {args}"
+    tr = f"{launch_prefix(python_exe)} {args}"
     if len(tr) > MAX_TR:
         raise ValueError(f"the task command is {len(tr)} characters; Task Scheduler allows at most {MAX_TR}. "
                          "Move SlothFile or the folder to a shorter path.")
@@ -494,7 +515,7 @@ def _winreg():
 
 
 def menu_command(python_exe: str | None = None) -> str:
-    return f'{_quote_arg(gui_python(python_exe))} -m slothfile ui "%V"'
+    return f'{launch_prefix(python_exe)} ui "%V"'
 
 
 def install_context_menu(python_exe: str | None = None, *, base: str = CLASSES) -> None:
@@ -517,7 +538,8 @@ def _is_ours(wr, path: str) -> bool:
             value, _ = wr.QueryValueEx(k, "")
     except OSError:
         return False
-    return isinstance(value, str) and "-m slothfile" in value
+    return isinstance(value, str) and ("-m slothfile" in value
+                                       or ("slothfile" in value.lower() and value.rstrip().endswith('ui "%V"')))
 
 
 def _subkeys(wr, path: str) -> list[str]:
@@ -597,10 +619,15 @@ def launcher_script(py: str) -> bytes:
 def install_run_alias(python_exe: str | None = None, *, base: str = APP_PATHS) -> Path:
     """Let the user type 'slothfile' in Win+R. App Paths points at a tiny
     launcher in SlothFile's own folder that starts the UI without a console."""
+    wr = _winreg()
+    if frozen() and python_exe is None:
+        # The installed app is a real exe: point App Paths straight at it.
+        with wr.CreateKeyEx(wr.HKEY_CURRENT_USER, f"{base}\\slothfile.exe", 0, wr.KEY_WRITE) as k:
+            wr.SetValueEx(k, "", 0, wr.REG_SZ, gui_python())
+        return Path(gui_python())
     data = launcher_script(gui_python(python_exe))
     launcher = _launcher_path()
     launcher.write_bytes(data)  # bytes: no newline translation, no code page
-    wr = _winreg()
     with wr.CreateKeyEx(wr.HKEY_CURRENT_USER, f"{base}\\slothfile.exe", 0, wr.KEY_WRITE) as k:
         wr.SetValueEx(k, "", 0, wr.REG_SZ, str(launcher))
     return launcher
@@ -614,8 +641,15 @@ def uninstall_run_alias(*, base: str = APP_PATHS) -> None:
             value, _ = wr.QueryValueEx(k, "")
     except OSError:
         return
-    if os.path.normcase(str(value)) == os.path.normcase(str(_launcher_path())):
+    if os.path.normcase(str(value)) in _alias_targets():
         wr.DeleteKey(wr.HKEY_CURRENT_USER, path)
+
+
+def _alias_targets() -> set[str]:
+    targets = {os.path.normcase(str(_launcher_path()))}
+    if frozen():
+        targets.add(os.path.normcase(gui_python()))
+    return targets
 
 
 def run_alias_installed(*, base: str = APP_PATHS) -> bool:
@@ -625,7 +659,7 @@ def run_alias_installed(*, base: str = APP_PATHS) -> bool:
             value, _ = wr.QueryValueEx(k, "")
     except OSError:
         return False
-    return os.path.normcase(str(value)) == os.path.normcase(str(_launcher_path())) and Path(value).is_file()
+    return os.path.normcase(str(value)) in _alias_targets() and Path(value).is_file()
 
 
 __all__ = ["notify", "toast_xml", "auto_run", "trusted", "pending", "clear_pending", "listing", "watch",

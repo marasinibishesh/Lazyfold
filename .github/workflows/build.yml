@@ -1,0 +1,76 @@
+# Tests on every push and pull request; on a version tag (v1.2.3) also builds
+# SlothFile.exe, packs SlothFile-Setup-<version>.exe and publishes a GitHub Release.
+name: Test and build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install SlothFile with test extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[content,dev]"
+      - name: Run tests
+        env:
+          SLOTHFILE_CI: "1"
+        run: python -m pytest -q
+
+  build:
+    needs: test
+    runs-on: windows-latest
+    permissions:
+      contents: write   # to attach the installer to a Release on tags
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tools (no PyTorch: the app does not bundle it)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pywebview>=6.2" "pyinstaller>=6.22" "pypdf>=6.21.2" "pillow>=12"
+      - name: Build SlothFile.exe and SlothFileCLI.exe
+        run: pyinstaller packaging\slothfile.spec --noconfirm --distpath packaging\output\dist --workpath packaging\output\build
+      - name: Smoke-test the built exe
+        shell: pwsh
+        run: |
+          $exe = "packaging\output\dist\SlothFile\SlothFileCLI.exe"
+          & $exe --version
+          $d = Join-Path $env:RUNNER_TEMP "demo\Downloads"
+          & $exe demo $d
+          & $exe plan $d
+          if ($LASTEXITCODE -ne 0) { throw "plan failed" }
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          $version = "0.2.0"
+          if ("${{ github.ref_type }}" -eq "tag") { $version = "${{ github.ref_name }}".TrimStart("v") }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$version" packaging\slothfile.iss
+          Get-ChildItem packaging\output\*.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SlothFile-Setup
+          path: packaging/output/SlothFile-Setup-*.exe
+          if-no-files-found: error
+      - name: Publish release (tags only)
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packaging/output/SlothFile-Setup-*.exe
+          generate_release_notes: true

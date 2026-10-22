@@ -8,6 +8,8 @@ SlothFile looks at one folder you choose and reads what each file really is: its
 
 Everything runs **on your own computer**. Documents can optionally be read by **Gemma 4**, an open AI model that runs locally through Ollama. No file content is ever sent to the internet.
 
+![SlothFile app window](docs/screenshots/app-window.png)
+
 ![Plan preview](docs/screenshots/2-plan-light.png)
 
 ---
@@ -16,8 +18,9 @@ Everything runs **on your own computer**. Documents can optionally be read by **
 
 1. [What it can do](#what-it-can-do)
 2. [Requirements](#requirements)
-3. [Quick start (5 minutes)](#quick-start-5-minutes)
+3. [Install](#install)
 4. [Optional: local AI with Gemma](#optional-local-ai-with-gemma)
+   - [Optional: predict which moves you'll accept (TabPFN)](#optional-predict-which-moves-youll-accept-tabpfn)
 5. [Using the app](#using-the-app)
 6. [Command-line reference](#command-line-reference)
 7. [Settings](#settings)
@@ -26,9 +29,10 @@ Everything runs **on your own computer**. Documents can optionally be read by **
 10. [Uninstall](#uninstall)
 11. [Troubleshooting](#troubleshooting)
 12. [Running the tests](#running-the-tests)
-13. [Project structure](#project-structure)
-14. [Limitations](#limitations)
-15. [License and credits](#license-and-credits)
+13. [Automated builds (GitHub Actions)](#automated-builds-github-actions)
+14. [Project structure](#project-structure)
+15. [Limitations](#limitations)
+16. [License and credits](#license-and-credits)
 
 ---
 
@@ -68,78 +72,81 @@ Everything runs **on your own computer**. Documents can optionally be read by **
 
 ## Requirements
 
-| What | Version | Notes |
+| What | Needed for | Notes |
 |---|---|---|
-| **Windows** | 10 or 11 | SlothFile is built and tested on Windows 11. macOS and Linux are not supported yet |
-| **Python** | 3.10 or newer | Tested with 3.12 and 3.14. Get it from [python.org](https://www.python.org/downloads/windows/), or run `winget install -e --id Python.Python.3.12` |
-| **Git** | any | To clone the project ([git-scm.com](https://git-scm.com/download/win)), or download the ZIP from GitHub instead |
-| **Ollama + Gemma 4** | optional | Only for AI reading of documents. SlothFile works fully without it |
-| Disk space | ~60 MB, or ~5 GB with the AI model | |
+| **Windows 10 or 11 (64-bit)** | everything | Built and tested on Windows 11. macOS and Linux are not supported yet |
+| Microsoft Edge **WebView2** | the app window | Built into Windows 11 and current Windows 10. The installer checks and links to Microsoft's download if it's missing |
+| **Ollama + Gemma 4** | optional AI reading of documents | SlothFile works fully without it |
+| Python 3.10+ and Git | only for installing from source | Not needed for the Windows installer |
 
 No administrator rights are needed for anything.
 
 ---
 
-## Quick start (5 minutes)
+## Install
 
-Open **PowerShell** (Start menu → type `PowerShell`) and run these commands one at a time.
+### Option 1: Windows installer (recommended)
 
-### 1. Download the project
+1. Open the **[Releases page](https://github.com/marasinibishesh/SlothFile/releases/latest)** and download **`SlothFile-Setup-<version>.exe`** (about 16 MB).
+2. Run it. Windows may show **"Windows protected your PC"** because the installer isn't code-signed. Click **More info → Run anyway**.
+3. Follow the wizard. It installs for your user only (into `%LOCALAPPDATA%\Programs\SlothFile`) and offers three optional extras:
+   - a desktop shortcut;
+   - **"Tidy with SlothFile"** in the right-click menu of folders;
+   - **Windows+R → `slothfile`** to open the app.
+4. Start **SlothFile** from the Start menu. It opens in its own window, not a browser.
+
+To uninstall, open **Settings → Apps → Installed apps → SlothFile → Uninstall**. This removes the app, its shortcuts, its right-click entry and its scheduled tasks. Your organized files and undo history are never touched.
+
+The installed app also includes **`SlothFileCLI.exe`**, the full command line:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\SlothFile\SlothFileCLI.exe" plan "$env:USERPROFILE\Downloads"
+```
+
+### Option 2: run from source (for developers)
+
+Open **PowerShell** and run these commands one at a time:
 
 ```powershell
 git clone https://github.com/marasinibishesh/SlothFile.git
 cd SlothFile
-```
-
-### 2. Create a private Python environment and install SlothFile
-
-```powershell
 python -m venv .venv
 .\.venv\Scripts\python -m pip install --upgrade pip
-.\.venv\Scripts\python -m pip install -e ".[content]"
+.\.venv\Scripts\python -m pip install -e ".[content,desktop]"
 ```
 
-`[content]` adds `pypdf` and `Pillow` so SlothFile can read PDF text and photo dates. To also run the tests, use `".[content,dev]"`.
+- `[content]` adds pypdf and Pillow, which read PDF text and photo dates.
+- `[desktop]` adds pywebview, for the app window.
+- Add `dev` to run the tests: `".[content,desktop,dev]"`.
 
-> If `python` is not recognized, try `py -3` instead of `python` in the first command, or see [Troubleshooting](#troubleshooting).
+> If `python` is not recognized, use `py -3` instead, or see [Troubleshooting](#troubleshooting).
 
-### 3. Try it safely on a demo folder first
+Try it on a disposable demo folder first, then open the app:
 
 ```powershell
-.\.venv\Scripts\slothfile demo
+.\.venv\Scripts\slothfile demo                 # creates a messy sample "Downloads" folder and prints its path
+.\.venv\Scripts\slothfile desktop              # opens SlothFile in its own window
+.\.venv\Scripts\slothfile desktop "$env:USERPROFILE\Downloads"   # ...with your Downloads folder pre-filled
+.\.venv\Scripts\slothfile ui                   # same app in your browser instead (no pywebview needed)
 ```
 
-This creates a disposable messy "Downloads" folder full of sample files and prints its location, for example `C:\Users\you\AppData\Local\Temp\slothfile-demo-xxxx\Downloads`.
+Paste the demo folder's path (or click **Browse…**), click **Preview plan**, and then **Move files**. Nothing changes until you confirm. Afterwards, try **Undo this run**.
 
-### 4. Open the app
+> You don't need to "activate" the environment: every command above calls the program inside `.venv` directly.
+
+### Option 3: build the installer yourself
+
+Build it from a source checkout. It's best to use a separate environment, so optional extras like PyTorch never end up in the app:
 
 ```powershell
-.\.venv\Scripts\slothfile ui
+python -m venv .venv-build
+.\.venv-build\Scripts\python -m pip install "pywebview>=6.2" "pyinstaller>=6.22" "pypdf>=6.21.2" "pillow>=12"
+.\.venv-build\Scripts\pyinstaller packaging\slothfile.spec --noconfirm --distpath packaging\output\dist --workpath packaging\output\build
+winget install -e --id JRSoftware.InnoSetup --scope user
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" packaging\slothfile.iss
 ```
 
-Your browser opens SlothFile at `http://127.0.0.1:<port>`. Paste the demo folder's path (or click **Browse…**) and click **Preview plan**. Nothing changes until you click **Move files** and confirm. Afterwards, try **Undo this run**.
-
-Keep the PowerShell window open while you use the app, and press **Ctrl+C** in it to stop SlothFile.
-
-### 5. Use it on your real Downloads folder
-
-```powershell
-.\.venv\Scripts\slothfile ui "$env:USERPROFILE\Downloads"
-```
-
-> **Tip:** you don't need to "activate" the environment. Every command above calls the program inside `.venv` directly. If you prefer to activate it, run `.\.venv\Scripts\Activate.ps1` once per window, then just type `slothfile ...`.
-
-### Alternative: one-click installer
-
-From the project folder, this script sets everything up in `%LOCALAPPDATA%\SlothFile\app`. It can also download Ollama and the Gemma model, and add a Start Menu shortcut, the right-click menu entry and the Windows+R shortcut. It asks before every download or change.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -DryRun   # preview what it would do
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1           # install (asks questions)
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -NoModel  # install without the AI model
-```
-
-After installing, start SlothFile from the Start Menu ("SlothFile"), or with Windows+R → `slothfile` if you chose that option.
+The installer is written to `packaging\output\SlothFile-Setup-<version>.exe`. GitHub Actions does exactly this automatically for every version tag (see [Automated builds](#automated-builds-github-actions)).
 
 ---
 
@@ -163,7 +170,7 @@ ollama pull gemma4:e2b-it-qat
 
 ### 3. Use it
 
-- **Web app:** tick **"Use local Gemma model for documents"** before clicking *Preview plan*.
+- **App:** tick **"Use local Gemma model for documents"** before clicking *Preview plan*.
 - **Command line:** add `--model` to `slothfile plan`.
 
 ```powershell
@@ -174,9 +181,33 @@ If Ollama isn't running or the model is missing, SlothFile says so and carries o
 
 ---
 
+## Optional: predict which moves you'll accept (TabPFN)
+
+Each time you review a plan, SlothFile notes (locally, in `%LOCALAPPDATA%\SlothFile\reviews.jsonl`) which proposed moves you accepted unchanged and which you unticked or sent elsewhere. It stores only file features (type, size, folder chosen, confidence, download site), never file names or contents. Once there are at least 30 reviewed moves, with at least 5 accepted and 5 changed, **[TabPFN](https://github.com/PriorLabs/TabPFN)**, Prior Labs' tabular foundation model, learns your habits from that history:
+
+- **The automatic run** only moves files you would very likely accept (by default, a predicted probability of at least 90%). Files you usually correct wait for your review instead.
+- **In the plan**, rows get a **"likely OK 93%"** or **"check 21%"** badge, so your attention goes where you usually disagree.
+
+It runs **entirely on your PC, on the CPU**: about 4–5 s for the first prediction while the model loads, then about half a second. It uses TabPFN **v2**, whose weights (29 MB) download once from Hugging Face without any account. If you've accepted the TabPFN-3.5 license and set `TABPFN_TOKEN`, it uses TabPFN-3.5-Fast instead.
+
+Install it in a source checkout (not included in the Windows installer, because PyTorch adds several hundred MB):
+
+```powershell
+.\.venv\Scripts\python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+.\.venv\Scripts\python -m pip install -e ".[predict]"
+```
+
+Turn it off with `slothfile settings use_predictor=false`. Without TabPFN, or before there is enough history, SlothFile behaves exactly as before.
+
+In a simulation with three made-up users, the clearest gain was for a user who never wants screenshots moved: TabPFN raised the share of automatically moved files that user would accept from 71–79% to 94–100%, while auto-moving fewer files when history was short. For users with no strong habits it made no difference. To reproduce it, run `python scripts\predictor_eval.py`; it is clearly labelled as a simulation.
+
+*Built with PriorLabs-TabPFN.*
+
+---
+
 ## Using the app
 
-Start it with `.\.venv\Scripts\slothfile ui` (optionally followed by a folder path). The app has four tabs.
+Open **SlothFile** from the Start menu (installer), or run `slothfile desktop` from a source install. The app has four tabs.
 
 ### Organize tab
 1. **Choose one folder.** Only files directly inside it are considered; subfolders are never touched.
@@ -324,20 +355,20 @@ Everything lives in **`%LOCALAPPDATA%\SlothFile`** (for example `C:\Users\you\Ap
 
 ## Uninstall
 
-1. Remove the extras SlothFile may have added (right-click menu, Windows+R shortcut, scheduled tasks):
+**Undo any runs you want reversed before uninstalling.** Your organized files always stay where they are.
 
-   ```powershell
-   .\.venv\Scripts\slothfile shell-uninstall
-   .\.venv\Scripts\slothfile schedule list      # then, for each task:
-   .\.venv\Scripts\slothfile schedule remove "<task name>"
-   ```
+**Installed with the Windows installer:** open **Settings → Apps → Installed apps → SlothFile → Uninstall**. This removes the program, its shortcuts, the right-click entry, the Windows+R shortcut and SlothFile's scheduled tasks.
 
-2. Delete the project folder (`SlothFile`, including `.venv`).
-3. Optionally delete `%LOCALAPPDATA%\SlothFile`. This removes your undo history, so undo is no longer possible.
+**Installed from source:**
 
-If you used the one-click installer, run `powershell -ExecutionPolicy Bypass -File .\scripts\uninstall.ps1` instead. It asks before removing anything and never touches your organized files.
+```powershell
+.\.venv\Scripts\slothfile shell-uninstall     # right-click entry and Windows+R shortcut
+.\.venv\Scripts\slothfile schedule clear      # every SlothFile scheduled task
+```
 
-Your organized files stay where they are. Undo any runs you want reversed **before** uninstalling.
+Then delete the project folder. If you used `scripts\install.ps1`, run `powershell -ExecutionPolicy Bypass -File .\scripts\uninstall.ps1` instead. It asks before removing anything.
+
+**Optional:** delete `%LOCALAPPDATA%\SlothFile` to remove settings and undo history. After that, undo is no longer possible.
 
 ---
 
@@ -373,13 +404,31 @@ The tests create and clean up temporary folders only; they never touch your own 
 
 ---
 
+## Automated builds (GitHub Actions)
+
+Every push and pull request runs the full test suite on a fresh Windows machine on GitHub. Every version tag (for example `v0.2.0`) also:
+1. builds `SlothFile.exe` and `SlothFileCLI.exe` with PyInstaller;
+2. smoke-tests the built exe on a demo folder;
+3. packs `SlothFile-Setup-<version>.exe` with Inno Setup;
+4. attaches it to a **GitHub Release**.
+
+See [`.github/workflows/build.yml`](.github/workflows/build.yml). To publish a new version:
+
+```powershell
+git tag v0.2.1
+git push origin v0.2.1
+```
+
+---
+
 ## Project structure
 
 ```
 SlothFile/
 ├── slothfile/              the application
+│   ├── desktop.py          the app window (SlothFile.exe) and exe command routing
 │   ├── cli.py              command-line interface
-│   ├── web.py, ui.html     local web app (127.0.0.1 only)
+│   ├── web.py, ui.html     the interface, served on 127.0.0.1 only
 │   ├── scanner.py          read-only folder scan, file-type sniffing, provenance
 │   ├── extract.py          bounded text and metadata extraction (in a separate process)
 │   ├── rules.py            built-in classifier and namer
@@ -396,10 +445,10 @@ SlothFile/
 │   ├── photos.py           photos by date
 │   ├── summary.py          weekly summary
 │   └── ...                 helpers (paths, journal, settings, models)
+├── packaging/              PyInstaller recipe, Inno Setup script, icon
+├── .github/workflows/      GitHub Actions: tests, exe build, installer, release
 ├── tests/                  automated tests (pytest)
-├── scripts/
-│   ├── install.ps1         one-click installer (asks before every step; -DryRun to preview)
-│   └── uninstall.ps1
+├── scripts/                install.ps1 / uninstall.ps1 for source installs
 ├── docs/screenshots/
 ├── pyproject.toml
 └── LICENSE
@@ -427,4 +476,6 @@ Open-source pieces it builds on:
 - [pypdf](https://github.com/py-pdf/pypdf) (BSD-3-Clause) and [Pillow](https://python-pillow.org) (MIT-CMU): optional, for PDF text and image metadata.
 - [Gemma 4](https://ai.google.dev/gemma) by Google (Apache 2.0): optional local AI model. It is **not included** in this repository; Ollama downloads it on your machine.
 - [Ollama](https://ollama.com) (MIT): optional, runs the model locally.
+- [TabPFN](https://github.com/PriorLabs/TabPFN) by Prior Labs: optional, predicts which moves you'll accept. The `tabpfn` package is Apache 2.0. The TabPFN v2 weights are under the [Prior Labs License](https://huggingface.co/Prior-Labs/TabPFN-v2-clf/blob/main/LICENSE.txt) (Apache 2.0 with an attribution requirement): **Built with PriorLabs-TabPFN**. The weights are not included in this repository; they download on your machine.
+- [pywebview](https://pywebview.flowrl.com) (BSD-3-Clause) for the app window, [PyInstaller](https://pyinstaller.org) for the exe and [Inno Setup](https://jrsoftware.org/isinfo.php) for the installer.
 - Windows' built-in OCR, Task Scheduler and Recycle Bin are used through their standard interfaces.
