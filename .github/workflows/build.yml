@@ -16,8 +16,8 @@ jobs:
   test:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install SlothFile with test extras
@@ -41,8 +41,8 @@ jobs:
     permissions:
       contents: write   # to attach the installer to a Release on tags
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: "Install build tools (no PyTorch, the app does not bundle it)"
@@ -69,7 +69,7 @@ jobs:
           if ("${{ github.ref_type }}" -eq "tag") { $version = "${{ github.ref_name }}".TrimStart("v") }
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$version" packaging\slothfile.iss
           Get-ChildItem packaging\output\*.exe
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: SlothFile-Setup
           path: packaging/output/SlothFile-Setup-*.exe

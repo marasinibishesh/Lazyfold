@@ -43,9 +43,9 @@ class DesktopApi:
         self._window = None  # private: pywebview must not expose the window object to the page
 
     def pick_folder(self) -> str | None:
-        import webview
         if self._window is None:
             return None
+        import webview
         kind = getattr(getattr(webview, "FileDialog", None), "FOLDER", None)
         if kind is None:  # pywebview < 5
             kind = webview.FOLDER_DIALOG

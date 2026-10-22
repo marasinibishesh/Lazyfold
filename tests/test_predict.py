@@ -122,6 +122,7 @@ def test_predict_none_when_not_ready_or_unavailable(monkeypatch):
 
 
 def test_predictor_failure_returns_none(monkeypatch):
+    pytest.importorskip("numpy")  # part of the optional [predict] extra
     _write_rows(25, 5)
     monkeypatch.setattr(predict, "available", lambda: (True, "ok"))
 
