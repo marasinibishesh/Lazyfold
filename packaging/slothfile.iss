@@ -6,6 +6,9 @@
 #ifndef AppVersion
   #define AppVersion "0.2.0"
 #endif
+#ifndef AppVersionNum
+  #define AppVersionNum AppVersion
+#endif
 #define AppPublisher "Bishesh Marasini"
 #define AppURL "https://github.com/marasinibishesh/SlothFile"
 
@@ -34,7 +37,9 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
-VersionInfoVersion={#AppVersion}
+; The running app holds this mutex: Setup and the uninstaller ask the user to close it first.
+AppMutex=SlothFileAppMutex
+VersionInfoVersion={#AppVersionNum}
 VersionInfoCompany={#AppPublisher}
 VersionInfoDescription={#AppName} installer
 
@@ -47,7 +52,7 @@ Name: "contextmenu"; Description: "Add ""Tidy with SlothFile"" to the right-clic
 Name: "runalias"; Description: "Open SlothFile from Windows+R by typing ""slothfile"""; GroupDescription: "Shortcuts:"
 
 [Files]
-Source: "output\dist\SlothFile\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "output\dist\SlothFile\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs uninsrestartdelete
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 
 [Icons]
@@ -83,10 +88,14 @@ begin
   Result := True;
   if not WebView2Installed() then
   begin
-    if MsgBox('SlothFile needs the Microsoft Edge WebView2 Runtime, which is missing on this PC.' + #13#10 + #13#10 +
-              'Open the Microsoft download page now? (Install it, then run this setup again.)',
-              mbConfirmation, MB_YESNO) = IDYES then
-      ShellExec('open', 'https://developer.microsoft.com/microsoft-edge/webview2/', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+    Log('Microsoft Edge WebView2 Runtime is missing; aborting setup.');
     Result := False;
+    // Silent installs must never wait on a dialog nobody can see.
+    if WizardSilent() then
+      Exit;
+    if SuppressibleMsgBox('SlothFile needs the Microsoft Edge WebView2 Runtime, which is missing on this PC.' + #13#10 + #13#10 +
+              'Open the Microsoft download page now? (Install it, then run this setup again.)',
+              mbConfirmation, MB_YESNO, IDNO) = IDYES then
+      ShellExec('open', 'https://developer.microsoft.com/microsoft-edge/webview2/', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
   end;
 end;

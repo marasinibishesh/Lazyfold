@@ -595,9 +595,10 @@ def context_menu_installed(*, base: str = CLASSES) -> bool:
 
 
 def _launcher_path() -> Path:
-    d = state_dir() / "launch"
-    d.mkdir(exist_ok=True)
-    return d / "slothfile.cmd"
+    # Computed only: checking or removing the alias (e.g. during uninstall)
+    # must not create SlothFile's data folder.
+    from .journal import state_path
+    return state_path() / "launch" / "slothfile.cmd"
 
 
 _BATCH_UNSAFE = '%"^!'
@@ -627,6 +628,7 @@ def install_run_alias(python_exe: str | None = None, *, base: str = APP_PATHS) -
         return Path(gui_python())
     data = launcher_script(gui_python(python_exe))
     launcher = _launcher_path()
+    launcher.parent.mkdir(parents=True, exist_ok=True)
     launcher.write_bytes(data)  # bytes: no newline translation, no code page
     with wr.CreateKeyEx(wr.HKEY_CURRENT_USER, f"{base}\\slothfile.exe", 0, wr.KEY_WRITE) as k:
         wr.SetValueEx(k, "", 0, wr.REG_SZ, str(launcher))

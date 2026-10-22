@@ -14,14 +14,18 @@ from pathlib import Path
 from typing import Any, Iterator
 
 
-def state_dir() -> Path:
+def state_path() -> Path:
+    """Where SlothFile keeps its state, without creating anything."""
     env = os.environ.get("SLOTHFILE_HOME")
     if env:
-        base = Path(env)
-    elif os.name == "nt":
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "SlothFile"
-    else:
-        base = Path.home() / ".local" / "state" / "slothfile"
+        return Path(env)
+    if os.name == "nt":
+        return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "SlothFile"
+    return Path.home() / ".local" / "state" / "slothfile"
+
+
+def state_dir() -> Path:
+    base = state_path()
     base.mkdir(parents=True, exist_ok=True)
     return base
 

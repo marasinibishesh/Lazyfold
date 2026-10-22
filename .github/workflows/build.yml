@@ -64,10 +64,21 @@ jobs:
         run: choco install innosetup -y --no-progress
       - name: Build the installer
         shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          $version = "0.2.0"
-          if ("${{ github.ref_type }}" -eq "tag") { $version = "${{ github.ref_name }}".TrimStart("v") }
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$version" packaging\slothfile.iss
+          # The app's own version (slothfile/__init__.py) is the source of truth.
+          $appVersion = python -c "import slothfile; print(slothfile.__version__)"
+          $version = $appVersion
+          if ($env:REF_TYPE -eq "tag") {
+            if ($env:REF_NAME -notmatch '^v(\d+\.\d+\.\d+)(-[0-9A-Za-z.-]+)?$') { throw "Tag '$env:REF_NAME' is not like v1.2.3 or v1.2.3-rc1" }
+            if ($Matches[1] -ne $appVersion) { throw "Tag $env:REF_NAME does not match slothfile.__version__ $appVersion" }
+            $version = $env:REF_NAME.Substring(1)
+          }
+          $numeric = ($version -split '-')[0]
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$version" "/DAppVersionNum=$numeric" packaging\slothfile.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
           Get-ChildItem packaging\output\*.exe
       - uses: actions/upload-artifact@v5
         with:

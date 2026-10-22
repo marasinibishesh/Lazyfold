@@ -18,6 +18,18 @@ import threading
 from http.server import ThreadingHTTPServer
 
 APP_TITLE = "SlothFile"
+APP_MUTEX = "SlothFileAppMutex"  # must match AppMutex in packaging/slothfile.iss
+_mutex = None
+
+
+def hold_app_mutex() -> None:
+    """Announce "SlothFile is running" for the installer/uninstaller, which
+    then asks the user to close the app instead of leaving files half-removed.
+    The handle lives until the process exits."""
+    global _mutex
+    if _mutex is None and os.name == "nt":
+        import ctypes
+        _mutex = ctypes.windll.kernel32.CreateMutexW(None, False, APP_MUTEX)
 
 
 def _ensure_streams() -> None:
@@ -87,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     import multiprocessing
     multiprocessing.freeze_support()  # the exe re-launches itself for the file-reading worker
     _ensure_streams()
+    hold_app_mutex()
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] == "ui":
         rest = [a for a in args[1:] if not a.startswith("-")]

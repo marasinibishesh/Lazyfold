@@ -36,6 +36,7 @@ N_ESTIMATORS = 4
 _last_status = "not run yet"
 _model_cache: tuple[tuple[Any, ...], Any, dict[str, dict[str, int]]] | None = None
 _lock = threading.Lock()
+_busy: threading.Thread | None = None  # the fit thread, kept to detect an abandoned one
 
 
 def available() -> tuple[bool, str]:
@@ -153,9 +154,15 @@ def fit_predict_rows(train: list[dict[str, Any]], test: list[dict[str, Any]], *,
         except BaseException as e:  # noqa: BLE001 - any failure just means "no prediction"
             result["err"] = f"{type(e).__name__}: {e}"
 
+    global _busy
+    if _busy is not None and _busy.is_alive():
+        # A previous fit timed out and is still running: don't pile up more fits.
+        _last_status = "predictor is still busy with a previous fit; skipped"
+        return None
     t0 = time.perf_counter()
     # A daemon thread lets us give up on a slow fit without blocking the plan.
     th = threading.Thread(target=work, name="slothfile-tabpfn", daemon=True)
+    _busy = th
     th.start()
     th.join(time_limit)
     took = time.perf_counter() - t0

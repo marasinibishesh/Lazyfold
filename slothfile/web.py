@@ -274,6 +274,8 @@ def make_handler(app: App):
                 if body.get("confirm") is not True:
                     raise ValueError("confirmation required")
                 learning.reset_learning()
+                from . import reviewlog
+                reviewlog.reset()  # also the history the predictor learns from
                 return self._json(200, {"ok": True})
             if path == "/api/cleanup/scan":
                 from . import cleanup

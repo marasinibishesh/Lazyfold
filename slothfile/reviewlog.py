@@ -87,11 +87,16 @@ def _clean(row: Any) -> dict[str, Any] | None:
     for name, typ in FEATURES.items():
         v = f.get(name)
         if typ is float:
-            if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
                 return None
-            v = float(v)
+            try:
+                v = float(v)
+            except (OverflowError, ValueError):
+                return None
+            if not math.isfinite(v) or abs(v) > 1e6:
+                return None
         elif typ is int:
-            if isinstance(v, bool) or not isinstance(v, int):
+            if isinstance(v, bool) or not isinstance(v, int) or not -1e6 <= v <= 1e6:
                 return None
         elif not isinstance(v, typ):
             return None
@@ -113,25 +118,32 @@ def load_rows() -> list[dict[str, Any]]:
             continue
         try:
             row = _clean(json.loads(line.decode("utf-8")))
-        except (UnicodeDecodeError, ValueError, RecursionError):
+        except (UnicodeDecodeError, ValueError, RecursionError, ArithmeticError):
             continue
         if row:
             rows.append(row)
     return rows[-MAX_ROWS:]
 
 
-def _label(p: Any, moved: set[str], ticked: set[str], overrides: dict[str, str]) -> int | None:
+def _label(p: Any, moved: set[str], ticked: set[str], overrides: dict[str, str],
+           renames: dict[str, str] | None = None) -> int | None:
     choice = overrides.get(p.rel_path)
     if choice == "keep" or p.rel_path not in ticked:
         return 0
     if choice and choice != p.category:
         return 0  # moved, but the user picked another folder
+    typed = (renames or {}).get(p.rel_path)
+    if typed is not None:
+        proposed = os.path.splitext(p.new_name or p.rel_path)[0]
+        if typed.strip() and typed.strip() != proposed:
+            return 0  # moved, but the user changed the name
     if p.rel_path in moved:
         return 1
     return None  # ticked but skipped/failed: says nothing about the user
 
 
-def record(plan: Plan, report: Any, approved: set[str] | None, overrides: dict[str, str]) -> int:
+def record(plan: Plan, report: Any, approved: set[str] | None, overrides: dict[str, str],
+           renames: dict[str, str] | None = None) -> int:
     """Log one row per reviewed move of `plan` (the plan as proposed, before
     the user's edits); returns how many rows were written. Duplicates and
     near-duplicates are not lessons, and each plan is recorded only once so a
@@ -150,7 +162,7 @@ def record(plan: Plan, report: Any, approved: set[str] | None, overrides: dict[s
     for p in plan.proposals:
         if p.action != "move" or p.duplicate_of or p.near_duplicate:
             continue
-        label = _label(p, moved, ticked, overrides)
+        label = _label(p, moved, ticked, overrides, renames)
         if label is None:
             continue
         lines.append(json.dumps({"v": _VERSION, "plan_id": plan.plan_id, "features": features(p, plan),

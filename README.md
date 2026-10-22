@@ -197,7 +197,7 @@ Install it in a source checkout (not included in the Windows installer, because 
 .\.venv\Scripts\python -m pip install -e ".[predict]"
 ```
 
-Turn it off with `slothfile settings use_predictor=false`. Without TabPFN, or before there is enough history, SlothFile behaves exactly as before.
+Turn it off with `slothfile settings use_predictor=false` (this also stops recording review history), and delete the history at any time with `slothfile learned --reset` or **Forget everything** in the app. Without TabPFN, or before there is enough history, SlothFile behaves exactly as before.
 
 In a simulation with three made-up users, the clearest gain was for a user who never wants screenshots moved: TabPFN raised the share of automatically moved files that user would accept from 71–79% to 94–100%, while auto-moving fewer files when history was short. For users with no strong habits it made no difference. To reproduce it, run `python scripts\predictor_eval.py`; it is clearly labelled as a simulation.
 

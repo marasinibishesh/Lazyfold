@@ -315,7 +315,9 @@ def _dispatch(args) -> int:
         from . import learning
         if args.reset:
             learning.reset_learning()
-            print("Forgot everything SlothFile learned.")
+            from . import reviewlog
+            reviewlog.reset()
+            print("Forgot everything SlothFile learned, including the review history used for predictions.")
         elif args.forget:
             print("Forgotten." if learning.forget_rule(args.forget) else "No such rule.")
         rules = learning.learned_rules()

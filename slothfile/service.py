@@ -214,7 +214,9 @@ def execute(plan_id: str, approved: set[str] | None = None, renames: dict[str, s
     _learn(original, approved, overrides, report)
     try:
         from . import reviewlog
-        reviewlog.record(original, report, approved, overrides)
+        from .settings import load_settings
+        if load_settings().get("use_predictor"):  # opting out also stops collecting history
+            reviewlog.record(original, report, approved, overrides, renames)
     except Exception:  # the review log feeds a hint; it must never block a run
         pass
     return report

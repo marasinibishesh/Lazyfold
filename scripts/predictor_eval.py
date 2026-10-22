@@ -196,8 +196,19 @@ def main() -> int:
     ap.add_argument("--seeds", type=int, default=3)
     args = ap.parse_args()
     print("SIMULATION - synthetic users and synthetic files, not real review data.\n")
-    home = tempfile.mkdtemp(prefix="slothfile-eval-")
-    os.environ["SLOTHFILE_HOME"] = home
+    previous = os.environ.get("SLOTHFILE_HOME")
+    with tempfile.TemporaryDirectory(prefix="slothfile-eval-") as home:  # removed afterwards
+        os.environ["SLOTHFILE_HOME"] = home
+        try:
+            return _run(args, home)
+        finally:
+            if previous is None:
+                os.environ.pop("SLOTHFILE_HOME", None)
+            else:
+                os.environ["SLOTHFILE_HOME"] = previous
+
+
+def _run(args, home: str) -> int:
     from slothfile import automation, predict, settings
     ok, why = predict.available()
     if not ok:
