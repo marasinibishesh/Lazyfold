@@ -39,7 +39,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install build tools (no PyTorch: the app does not bundle it)
+      - name: "Install build tools (no PyTorch, the app does not bundle it)"
         run: |
           python -m pip install --upgrade pip
           python -m pip install "pywebview>=6.2" "pyinstaller>=6.22" "pypdf>=6.21.2" "pillow>=12"
@@ -68,7 +68,7 @@ jobs:
           name: SlothFile-Setup
           path: packaging/output/SlothFile-Setup-*.exe
           if-no-files-found: error
-      - name: Publish release (tags only)
+      - name: "Publish release (tags only)"
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
