@@ -117,3 +117,21 @@ def test_settings_save_roundtrip(server):
     assert status == 200 and r["settings"]["recycle_old_installers_days"] == 0 and r["settings"]["ocr"] is False
     status, r = call(port, "GET", "/api/settings", headers=auth)
     assert status == 200 and r["settings"]["ocr"] is False
+
+
+def test_predictor_endpoints(server, monkeypatch):
+    from slothfile import predict
+    app, port, _ = server
+    auth = {"X-SlothFile-Token": app.token}
+    assert call(port, "GET", "/api/predictor")[0] == 403
+    status, r = call(port, "GET", "/api/predictor", headers=auth)
+    assert status == 200 and r["history"]["rows"] == 0 and isinstance(r["available"], bool)
+    monkeypatch.setattr(predict, "selftest", lambda: {"ok": True, "auc": 0.95})
+    status, r = call(port, "POST", "/api/predictor/selftest", {}, auth)
+    assert status == 200 and r["job"]
+    for _ in range(100):
+        _, job = call(port, "GET", f"/api/job/{r['job']}", headers=auth)
+        if job["state"] != "running":
+            break
+        time.sleep(0.05)
+    assert job == {"state": "done", "result": {"ok": True, "auc": 0.95}, "error": None}

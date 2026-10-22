@@ -33,7 +33,10 @@ DEFAULTS: dict[str, Any] = {
     "use_model": True,
     "use_predictor": True,
     "ollama_path": None,
+    "theme": "system",  # system | light | dark
+    "default_folder": None,  # folder pre-filled in the app (None = Downloads)
 }
+THEMES = ("system", "light", "dark")
 
 
 def settings_path() -> Path:
@@ -62,6 +65,16 @@ def _check(key: str, value: Any) -> Any:
         if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 100000:
             raise ValueError(f"{key} must be a whole number of 0 or more (0 turns it off)")
         return value
+    if key == "theme":
+        if value not in THEMES:
+            raise ValueError("theme must be system, light or dark")
+        return value
+    if key == "default_folder":
+        if value is None or value == "":
+            return None
+        if not isinstance(value, str) or "\x00" in value or len(value) > 1000:
+            raise ValueError("default_folder must be a folder path or empty")
+        return value.strip()
     if key == "ollama_path":
         if value is None:
             return None

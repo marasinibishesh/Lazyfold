@@ -91,3 +91,93 @@ jobs:
         with:
           files: packaging/output/SlothFile-Setup-*.exe
           generate_release_notes: true
+
+  # "Full" edition: the same app plus CPU PyTorch, TabPFN and the TabPFN v2
+  # weights, so the approval predictor works offline right after install.
+  # Runs after `build` so on tags the lean job creates the Release first and
+  # this one only adds a file to it (two jobs creating it at once can race).
+  build-full:
+    needs: [test, build]
+    runs-on: windows-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write   # to attach the installer to a Release on tags
+    env:
+      CKPT_NAME: tabpfn-v2-classifier-finetuned-zk73skhh.ckpt
+      CKPT_SHA256: cf8c519c01eaf1613ee91239006d57b1c806ff5f23ac1aeb1315ba1015210e49
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"   # 3.12.0 breaks frozen scipy; setup-python gives the latest 3.12.x
+      - name: "Install build tools with CPU PyTorch and TabPFN"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install tabpfn==9.2.0 "pywebview>=6.2" "pyinstaller>=6.22" "pypdf>=6.21.2" "pillow>=12"
+      - name: Cache the TabPFN v2 checkpoint
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/tabpfn
+          key: tabpfn-${{ env.CKPT_NAME }}
+      - name: Download the TabPFN v2 checkpoint from Hugging Face
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "tabpfn"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $ckpt = Join-Path $dir $env:CKPT_NAME
+          if (-not (Test-Path $ckpt)) {
+            curl.exe -fsSL --retry 3 --connect-timeout 30 --max-time 900 -o $ckpt "https://huggingface.co/Prior-Labs/TabPFN-v2-clf/resolve/main/$env:CKPT_NAME"
+            if ($LASTEXITCODE -ne 0) { throw "checkpoint download failed" }
+          }
+          $hash = (Get-FileHash $ckpt -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $env:CKPT_SHA256) { Remove-Item $ckpt; throw "checkpoint SHA-256 $hash does not match $env:CKPT_SHA256" }
+          "SLOTHFILE_TABPFN_CKPT=$ckpt" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Build the Full SlothFile.exe and SlothFileCLI.exe
+        run: pyinstaller packaging\slothfile-full.spec --noconfirm --distpath packaging\output-full\dist --workpath packaging\output-full\build
+      - name: Smoke-test the Full exe (offline TabPFN prediction)
+        shell: pwsh
+        env:
+          HF_HUB_OFFLINE: "1"
+        run: |
+          $exe = "packaging\output-full\dist\SlothFile\SlothFileCLI.exe"
+          $env:SLOTHFILE_HOME = Join-Path $env:RUNNER_TEMP "sf-home"
+          $env:APPDATA = Join-Path $env:RUNNER_TEMP "empty-appdata"   # prove the bundled weights are used
+          New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
+          & $exe --version
+          & $exe predictor selftest
+          if ($LASTEXITCODE -ne 0) { throw "predictor selftest failed" }
+          $d = Join-Path $env:RUNNER_TEMP "demo\Downloads"
+          & $exe demo $d
+          & $exe plan $d
+          if ($LASTEXITCODE -ne 0) { throw "plan failed" }
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build the Full installer
+        shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          # Same version rules as the lean build job.
+          $appVersion = python -c "import slothfile; print(slothfile.__version__)"
+          $version = $appVersion
+          if ($env:REF_TYPE -eq "tag") {
+            if ($env:REF_NAME -notmatch '^v(\d+\.\d+\.\d+)(-[0-9A-Za-z.-]+)?$') { throw "Tag '$env:REF_NAME' is not like v1.2.3 or v1.2.3-rc1" }
+            if ($Matches[1] -ne $appVersion) { throw "Tag $env:REF_NAME does not match slothfile.__version__ $appVersion" }
+            $version = $env:REF_NAME.Substring(1)
+          }
+          $numeric = ($version -split '-')[0]
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$version" "/DAppVersionNum=$numeric" packaging\slothfile-full.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+          Get-ChildItem packaging\output-full\*.exe
+      - uses: actions/upload-artifact@v5
+        with:
+          name: SlothFile-Setup-Full
+          path: packaging/output-full/SlothFile-Setup-Full-*.exe
+          if-no-files-found: error
+      - name: "Attach the Full installer to the release (tags only)"
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packaging/output-full/SlothFile-Setup-Full-*.exe

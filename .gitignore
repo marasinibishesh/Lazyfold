@@ -13,3 +13,6 @@ demo-downloads/
 .venv-build/
 results_local/
 packaging/output/
+.venv-build-full/
+.python-3.12.10/
+packaging/output-full/

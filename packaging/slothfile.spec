@@ -26,6 +26,11 @@ MERGE((gui, "launch_gui", "SlothFile"), (cli, "launch_cli", "SlothFileCLI"))
 
 common = dict(debug=False, strip=False, upx=False, icon=str(ROOT / "packaging" / "slothfile.ico"),
               version=str(ROOT / "packaging" / "version_info.txt"))
-gui_exe = EXE(PYZ(gui.pure), gui.scripts, [], exclude_binaries=True, name="SlothFile", console=False, **common)
+# Splash image shown the instant SlothFile.exe starts (before Python loads);
+# slothfile.desktop closes it once the app window is ready.
+splash = Splash(str(ROOT / "packaging" / "splash.png"), binaries=gui.binaries, datas=gui.datas,
+                text_pos=None, always_on_top=False)
+gui_exe = EXE(PYZ(gui.pure), gui.scripts, splash, [], exclude_binaries=True, name="SlothFile", console=False, **common)
 cli_exe = EXE(PYZ(cli.pure), cli.scripts, [], exclude_binaries=True, name="SlothFileCLI", console=True, **common)
-COLLECT(gui_exe, gui.binaries, gui.datas, cli_exe, cli.binaries, cli.datas, name="SlothFile", strip=False, upx=False)
+COLLECT(gui_exe, gui.binaries, gui.datas, splash.binaries, cli_exe, cli.binaries, cli.datas, name="SlothFile",
+        strip=False, upx=False)

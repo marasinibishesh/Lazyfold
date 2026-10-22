@@ -15,6 +15,9 @@ def home(tmp_path, monkeypatch):
     """Journals and plans go to a throwaway state dir, never the real one."""
     h = tmp_path / "state"
     monkeypatch.setenv("SLOTHFILE_HOME", str(h))
+    # Tests must never launch a real Ollama server found on the dev machine.
+    from slothfile import engine
+    monkeypatch.setattr(engine, "_autostart_ollama", lambda: False)
     return h
 
 

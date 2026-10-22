@@ -4,7 +4,7 @@
 
 #define AppName "SlothFile"
 #ifndef AppVersion
-  #define AppVersion "0.2.0"
+  #define AppVersion "0.3.0"
 #endif
 #ifndef AppVersionNum
   #define AppVersionNum AppVersion
@@ -51,9 +51,14 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 Name: "contextmenu"; Description: "Add ""Tidy with SlothFile"" to the right-click menu of folders"; GroupDescription: "Shortcuts:"
 Name: "runalias"; Description: "Open SlothFile from Windows+R by typing ""slothfile"""; GroupDescription: "Shortcuts:"
 
+[InstallDelete]
+; Lean and Full share an AppId: never leave the other edition's libraries behind.
+Type: filesandordirs; Name: "{app}\_internal"
+
 [Files]
 Source: "output\dist\SlothFile\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs uninsrestartdelete
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+Source: "third_party\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\SlothFile.exe"; Comment: "Tidy folders and clean up storage safely"

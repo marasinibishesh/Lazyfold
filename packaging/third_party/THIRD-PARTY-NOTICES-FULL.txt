@@ -1,0 +1,83 @@
+SlothFile (Full edition) - third-party notices
+================================================
+
+SlothFile is (c) 2026 Bishesh Marasini and released under the MIT License.
+
+Built with PriorLabs-TabPFN.
+
+This edition includes the TabPFN v2 classifier model weights
+(tabpfn-v2-classifier-finetuned-zk73skhh.ckpt) by Prior Labs GmbH, redistributed
+unmodified under the Prior Labs License version 1.1 (Apache 2.0 with an added
+attribution clause). A copy is installed next to this file as TabPFN-v2-LICENSE.txt.
+Source of the weights: https://huggingface.co/Prior-Labs/TabPFN-v2-clf
+The tabpfn Python package itself is Apache-2.0 (https://github.com/PriorLabs/TabPFN).
+SlothFile uses TabPFN only on this computer to estimate whether you would accept a
+proposed move. It never trains or distributes a model.
+
+The app also bundles the Python runtime (PSF License) and these packages. Their
+license texts are inside the app's _internal folder (in each *.dist-info folder) where
+the package ships one:
+
+  annotated-types 0.8.0 - MIT
+  anyio 4.15.1 - MIT
+  bottle 0.13.4 - MIT License
+  certifi 2026.10.19 - Mozilla Public License 2.0 (MPL 2.0)
+  cffi 2.1.1 - MIT-0
+  charset-normalizer 3.5.2 - MIT
+  click 8.5.0 - BSD-3-Clause
+  cloudpickle 3.1.2 - BSD License
+  clr_loader 0.3.1 - see the project's license file
+  colorama 0.4.6 - BSD License
+  contourpy 1.4.0 - BSD-3-Clause
+  cycler 0.12.1 - BSD License
+  einops 0.8.2 - MIT License
+  filelock 3.32.3 - MIT
+  fonttools 4.67.0 - MIT
+  fsspec 2026.7.0 - BSD-3-Clause
+  h11 0.16.0 - MIT License
+  hf-xet 1.7.0 - Apache-2.0
+  httpcore2 2.16.0 - BSD-3-Clause
+  httpx2 2.16.0 - BSD-3-Clause
+  huggingface_hub 2.2.0 - Apache Software License
+  idna 3.20 - BSD-3-Clause
+  Jinja2 3.1.6 - BSD License
+  joblib 1.6.0 - BSD-3-Clause
+  kiwisolver 1.5.1 - BSD License
+  lightgbm 4.7.0 - MIT
+  MarkupSafe 3.0.3 - BSD-3-Clause
+  matplotlib 3.11.2 - Python Software Foundation License
+  mpmath 1.3.0 - BSD License
+  narwhals 2.27.1 - MIT
+  networkx 3.6.1 - BSD-3-Clause
+  numpy 2.5.4 - BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
+  pandas 3.0.6 - BSD License
+  pillow 13.0.0 - MIT-CMU
+  proxy_tools 0.1.0 - MIT License
+  pycparser 3.11 - BSD-3-Clause
+  pydantic 2.14.1 - MIT
+  pydantic-settings 2.16.1 - MIT
+  pydantic_core 2.50.1 - MIT
+  pydot 4.0.1 - MIT
+  pyparsing 3.3.3 - MIT
+  pypdf 6.21.2 - BSD-3-Clause
+  python-dateutil 3.0.0 - BSD License; Apache Software License
+  python-dotenv 1.2.4 - BSD-3-Clause
+  pythonnet 3.2.1 - MIT
+  pywebview 6.2.1 - BSD License
+  PyYAML 6.0.3 - MIT License
+  requests 2.34.2 - Apache Software License
+  safetensors 0.8.0 - Apache Software License
+  scikit-learn 1.9.1 - BSD-3-Clause
+  scipy 1.18.1 - BSD License
+  six 1.17.0 - MIT License
+  skrub 0.10.1 - BSD-3-Clause
+  sympy 1.14.0 - BSD License
+  tabpfn 9.2.0 - Apache-2.0
+  threadpoolctl 3.7.0 - BSD-3-Clause
+  torch 2.14.1+cpu - Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND MIT
+  tqdm 4.70.1 - MPL-2.0 AND MIT
+  truststore 0.10.5 - MIT
+  typing-inspection 0.4.4 - MIT
+  typing_extensions 4.16.0 - PSF-2.0
+  tzdata 2026.5 - Apache-2.0
+  urllib3 2.8.0 - MIT

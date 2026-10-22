@@ -5,254 +5,528 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SlothFile</title>
 <style nonce="{{NONCE}}">
+/* ---------- Design tokens (Windows 11 inspired) ---------- */
 :root {
-  --bg: #f6f4ef; --panel: #ffffff; --ink: #24211c; --muted: #6d675d; --line: #e4dfd5;
-  --accent: #4f6f52; --accent-ink: #ffffff; --accent-soft: #e5ede3; --warn: #9a5b13; --warn-soft: #fbf0e1;
-  --bad: #a33a2b; --bad-soft: #f8e5e1; --chip: #efebe3; --focus: #2f6fd6;
+  --bg: #f3f3f3; --surface: #ffffff; --surface-2: #fafafa; --stroke: #e5e5e5; --stroke-strong: #d1d1d1;
+  --text: #1b1b1b; --text-2: #5c5c5c; --text-3: #8a8a8a;
+  --accent: #2f7a52; --accent-hover: #286b47; --accent-press: #225c3d; --accent-text: #ffffff; --accent-soft: #e6f2eb;
+  --warn: #9d5d00; --warn-soft: #fff4ce; --danger: #c42b1c; --danger-soft: #fde7e9; --ok: #0f7b0f; --ok-soft: #dff6dd;
+  --nav: #ebebeb; --nav-hover: rgba(0,0,0,.045); --nav-active: rgba(0,0,0,.065);
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 1px rgba(0,0,0,.04);
+  --shadow-lg: 0 8px 28px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.08);
+  --radius: 8px; --radius-sm: 4px; --focus: #0067c0;
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #171614; --panel: #211f1c; --ink: #ece8e1; --muted: #a39d92; --line: #36332e;
-    --accent: #8fb38f; --accent-ink: #10140f; --accent-soft: #263226; --warn: #e3a95c; --warn-soft: #33281a;
-    --bad: #ef8d7e; --bad-soft: #3a2320; --chip: #2c2a26; --focus: #7aa7ff;
-  }
+:root[data-theme="dark"] {
+  --bg: #202020; --surface: #2b2b2b; --surface-2: #262626; --stroke: #3a3a3a; --stroke-strong: #4a4a4a;
+  --text: #f3f3f3; --text-2: #c5c5c5; --text-3: #9a9a9a;
+  --accent: #6cc493; --accent-hover: #7fd0a3; --accent-press: #5bb383; --accent-text: #0b2417; --accent-soft: #23362b;
+  --warn: #fce100; --warn-soft: #433519; --danger: #ff99a4; --danger-soft: #442726; --ok: #6ccb5f; --ok-soft: #2a3b28;
+  --nav: #1c1c1c; --nav-hover: rgba(255,255,255,.05); --nav-active: rgba(255,255,255,.08);
+  --shadow: 0 1px 2px rgba(0,0,0,.3); --shadow-lg: 0 10px 32px rgba(0,0,0,.5); --focus: #99ebff;
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
-main { max-width: 980px; margin: 0 auto; padding: 24px 16px 120px; }
-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-h1 { font-size: 24px; margin: 0; letter-spacing: -0.01em; }
-h1 small { display: block; font-size: 14px; font-weight: 400; color: var(--muted); }
-h2 { font-size: 17px; margin: 0 0 12px; }
-h3 { font-size: 15px; margin: 16px 0 8px; }
-nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
-nav.tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--muted); }
-nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
-.chip { background: var(--chip); color: var(--muted); border-radius: 999px; padding: 4px 10px; font-size: 13px; white-space: nowrap; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
-.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-input[type=text], input[type=number], input[type=time], select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
-input[type=text].grow { flex: 1 1 320px; min-width: 0; }
-button { font: inherit; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 8px 14px; cursor: pointer; }
-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
-button.danger { background: var(--bad); color: #fff; border-color: var(--bad); font-weight: 600; }
-button:disabled { opacity: .5; cursor: not-allowed; }
-button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-label.toggle { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); }
-.hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/20px var(--font); overflow: hidden;
+  -webkit-font-smoothing: antialiased; user-select: none; }
+input, select, textarea { user-select: text; }
+button, input, select { font: inherit; color: inherit; }
 .hidden { display: none !important; }
-.mt12 { margin-top: 12px; }
-.between { justify-content: space-between; }
-.end { justify-content: flex-end; }
-.flush { margin-top: 0; }
-.bar { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; margin-top: 12px; }
-.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
-.summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.group { border-top: 1px solid var(--line); padding: 10px 0 4px; }
-.group-head { display: flex; align-items: center; gap: 8px; font-weight: 600; }
-.group-head .count { color: var(--muted); font-weight: 400; }
-.item { display: grid; grid-template-columns: 24px 1fr auto; gap: 4px 10px; padding: 8px 0 8px 4px; border-bottom: 1px dashed var(--line); }
-.item:last-child { border-bottom: 0; }
-.names { min-width: 0; overflow-wrap: anywhere; }
-.names .arrow { color: var(--muted); padding: 0 4px; }
-.names input { width: 100%; margin-top: 4px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
-.side { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
-.side select { font-size: 13px; padding: 3px 6px; max-width: 190px; }
-.why { grid-column: 2 / 4; color: var(--muted); font-size: 13px; }
-.pill { font-size: 12px; border-radius: 999px; padding: 2px 8px; white-space: nowrap; background: var(--accent-soft); color: var(--accent); height: fit-content; }
-.pill.mid { background: var(--warn-soft); color: var(--warn); }
-.badge { font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px; color: var(--muted); }
-.kept .item, .simple .item { grid-template-columns: 1fr; }
-.kept .why, .simple .why { grid-column: 1; }
-.recycle .item { grid-template-columns: 24px 1fr; }
-.recycle .why { grid-column: 2; }
-.notice { border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
-.notice.warn { background: var(--warn-soft); color: var(--warn); }
-.notice.bad { background: var(--bad-soft); color: var(--bad); }
-.notice.ok { background: var(--accent-soft); color: var(--accent); }
-footer.actions { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); padding: 12px 16px; }
-footer.actions .row { max-width: 980px; margin: 0 auto; justify-content: space-between; }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { color: var(--muted); font-weight: 500; }
-td.path { overflow-wrap: anywhere; }
-td.num { text-align: right; white-space: nowrap; }
-details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
-.cat { display: grid; grid-template-columns: 24px 1fr auto; gap: 2px 10px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
-.cat .why, .cat details { grid-column: 2 / 4; }
-.big { font-size: 22px; font-weight: 600; }
-.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 16px; }
-label.numfield { display: flex; gap: 10px; align-items: center; justify-content: space-between; color: var(--muted); }
-label.numfield input { width: 88px; flex: none; }
-dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); max-width: 480px; width: calc(100% - 32px); }
-dialog::backdrop { background: rgba(0,0,0,.35); }
-@media (max-width: 600px) { .item { grid-template-columns: 24px 1fr; } .item .side { grid-column: 2; align-items: flex-start; } .why { grid-column: 2; } }
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: var(--radius-sm); }
+
+/* ---------- Shell ---------- */
+.app { display: grid; grid-template-columns: 248px 1fr; height: 100vh; }
+.nav { background: var(--nav); padding: 14px 8px; display: flex; flex-direction: column; gap: 2px; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; }
+.brand svg { width: 30px; height: 30px; flex: none; }
+.brand b { font: 600 15px/1 var(--font-display); letter-spacing: .1px; }
+.nav button { all: unset; display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 6px;
+  color: var(--text); cursor: default; position: relative; transition: background .12s; }
+.nav button:hover { background: var(--nav-hover); }
+.nav button[aria-current="page"] { background: var(--nav-active); font-weight: 600; }
+.nav button[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px;
+  border-radius: 3px; background: var(--accent); animation: grow .2s ease; }
+.nav button:focus-visible { outline: 2px solid var(--focus); }
+.nav svg { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.nav .spacer { flex: 1; }
+.nav .foot { padding: 8px 12px; color: var(--text-3); font-size: 12px; line-height: 16px; }
+.nav .badge-count { margin-left: auto; background: var(--accent); color: var(--accent-text); font-size: 11px; font-weight: 600;
+  border-radius: 10px; padding: 0 7px; line-height: 18px; }
+main { overflow-y: auto; padding: 28px 40px 110px; position: relative; }
+.page { max-width: 1000px; margin: 0 auto; animation: page-in .22s cubic-bezier(.2,.8,.2,1); }
+.page-head { margin-bottom: 20px; }
+.page-head h1 { font: 600 28px/36px var(--font-display); margin: 0; }
+.page-head p { margin: 4px 0 0; color: var(--text-2); }
+
+/* ---------- Surfaces ---------- */
+.card { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 20px; margin-bottom: 12px; }
+.card h2 { font: 600 16px/22px var(--font-display); margin: 0 0 4px; }
+.card .sub { color: var(--text-2); margin: 0 0 14px; }
+.section-title { font: 600 15px/20px var(--font-display); margin: 26px 0 8px; color: var(--text); }
+.muted { color: var(--text-2); } .small { font-size: 12px; line-height: 16px; } .tiny { font-size: 11px; color: var(--text-3); }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.grow { flex: 1 1 auto; min-width: 0; }
+.right { margin-left: auto; }
+
+/* ---------- Controls ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 32px; padding: 5px 14px;
+  border-radius: var(--radius-sm); border: 1px solid var(--stroke-strong); background: var(--surface); color: var(--text);
+  cursor: default; transition: background .12s, transform .06s, border-color .12s; white-space: nowrap; }
+.btn:hover { background: var(--surface-2); }
+.btn:active { transform: scale(.98); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn.primary:active { background: var(--accent-press); }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+.btn.subtle { border-color: transparent; background: transparent; }
+.btn.subtle:hover { background: var(--nav-hover); }
+.btn.lg { min-height: 40px; padding: 8px 22px; font-size: 15px; }
+.btn:disabled { opacity: .45; pointer-events: none; }
+.btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.input { height: 34px; padding: 6px 10px; border: 1px solid var(--stroke-strong); border-bottom-color: var(--text-3);
+  border-radius: var(--radius-sm); background: var(--surface); outline: none; transition: border-color .12s; }
+.input:focus { border-bottom: 2px solid var(--accent); padding-bottom: 5px; }
+select.input { padding-right: 26px; }
+.input.num { width: 90px; }
+.check { width: 18px; height: 18px; accent-color: var(--accent); flex: none; margin: 0; }
+/* Toggle switch */
+.switch { position: relative; width: 40px; height: 20px; flex: none; }
+.switch input { appearance: none; margin: 0; width: 40px; height: 20px; border-radius: 10px; border: 1px solid var(--text-2);
+  background: transparent; transition: background .15s, border-color .15s; cursor: default; }
+.switch input:checked { background: var(--accent); border-color: var(--accent); }
+.switch input + i { position: absolute; top: 4px; left: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--text-2);
+  pointer-events: none; transition: transform .18s cubic-bezier(.3,1.4,.6,1), background .15s; }
+.switch input:checked + i { transform: translateX(20px); background: var(--accent-text); }
+/* Segmented control */
+.seg { display: inline-flex; border: 1px solid var(--stroke-strong); border-radius: var(--radius-sm); overflow: hidden; }
+.seg button { all: unset; padding: 5px 14px; cursor: default; transition: background .12s; }
+.seg button + button { border-left: 1px solid var(--stroke-strong); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.seg button:hover:not([aria-pressed="true"]) { background: var(--nav-hover); }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 12px; background: var(--surface-2);
+  border: 1px solid var(--stroke); font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.chip.accent { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 600; }
+.chip.btnlike { cursor: default; } .chip.btnlike:hover { border-color: var(--stroke-strong); color: var(--text); }
+.tag { font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--stroke);
+  color: var(--text-2); margin-left: 6px; white-space: nowrap; }
+.tag.ai { color: var(--accent); border-color: transparent; background: var(--accent-soft); }
+.tag.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
+
+.mt12 { margin-top: 12px; } .mt14 { margin-top: 14px; } .mt18 { margin-top: 18px; }
+.m0 { margin: 0; } .m6 { margin: 6px 0 0; } .m8 { margin: 8px 0 0; } .m10 { margin: 10px 0 0; } .m12 { margin: 12px 0 0; }
+.p0 { padding: 0; } .p6 { padding: 6px 8px; } .full { width: 100%; }
+.setting .icon.about-logo { width: 40px; height: 40px; stroke: none; }
+
+/* ---------- Setting rows ---------- */
+.setting { display: flex; align-items: center; gap: 16px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--stroke);
+  border-top-width: 0; }
+.setting:first-of-type, .section-title + .setting, .setting.first { border-top-width: 1px; border-radius: var(--radius) var(--radius) 0 0; }
+.setting.last { border-radius: 0 0 var(--radius) var(--radius); margin-bottom: 4px; }
+.setting.solo { border-top-width: 1px; border-radius: var(--radius); margin-bottom: 4px; }
+.setting .icon { width: 20px; height: 20px; stroke: var(--text-2); fill: none; stroke-width: 1.6; flex: none; stroke-linecap: round; stroke-linejoin: round; }
+.setting .label { flex: 1; min-width: 0; }
+.setting .label b { display: block; font-weight: 400; }
+.setting .label span { display: block; color: var(--text-2); font-size: 12px; line-height: 16px; margin-top: 2px; }
+.setting.stack { flex-direction: column; align-items: stretch; }
+.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; margin-top: 10px; }
+.cat-grid label { display: flex; align-items: center; gap: 8px; }
+
+/* ---------- Stepper ---------- */
+.stepper { display: flex; gap: 6px; margin: 0 0 16px; }
+.stepper div { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 2px; color: var(--text-3); font-weight: 600; font-size: 13px;
+  border-bottom: 2px solid var(--stroke); transition: color .2s, border-color .3s; }
+.stepper div span { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid currentColor; font-size: 12px; }
+.stepper div.on { color: var(--accent); border-color: var(--accent); }
+.stepper div.done { color: var(--text-2); border-color: var(--accent); }
+
+/* ---------- Folder picker ---------- */
+.picker { display: flex; gap: 8px; }
+.picker .input { flex: 1; min-width: 0; height: 40px; font-size: 14px; }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ---------- Progress ---------- */
+.progress { height: 4px; border-radius: 2px; background: var(--stroke); overflow: hidden; margin-top: 14px; position: relative; }
+.progress > div { height: 100%; width: 0; background: var(--accent); border-radius: 2px; transition: width .3s ease; }
+.progress.indet > div { width: 30%; position: absolute; animation: indet 1.2s cubic-bezier(.4,0,.2,1) infinite; }
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--stroke-strong); border-top-color: var(--accent);
+  animation: spin .8s linear infinite; flex: none; }
+
+.folderline { display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
+.folderline .fl-icon { width: 22px; height: 22px; stroke: var(--accent); fill: none; stroke-width: 1.6; flex: none; }
+.folderline .fl-path { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Plan list ---------- */
+.summary-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.group { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden;
+  box-shadow: var(--shadow); animation: rise .25s cubic-bezier(.2,.8,.2,1) both; }
+.group-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface-2); cursor: default; }
+.group-head .chev { width: 16px; height: 16px; stroke: var(--text-2); fill: none; stroke-width: 1.8; transition: transform .18s; flex: none; }
+.group.collapsed .chev { transform: rotate(-90deg); }
+.group.collapsed .group-body { display: none; }
+.group-head .fold { width: 18px; height: 18px; flex: none; }
+.group-head b { font-weight: 600; }
+.group-head .count { color: var(--text-3); }
+.item { display: grid; grid-template-columns: 20px minmax(0,1fr) auto auto; align-items: center; gap: 4px 12px; padding: 9px 14px;
+  border-top: 1px solid var(--stroke); transition: background .1s; }
+.item:hover { background: var(--surface-2); }
+.item .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .newname { color: var(--accent); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .conf { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); font-size: 12px; white-space: nowrap; }
+.item .conf i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.item .conf i.mid { background: #d29200; }
+.item .details { grid-column: 2 / 5; display: none; padding: 8px 0 4px; color: var(--text-2); font-size: 12px; line-height: 17px; }
+.item.open .details { display: block; animation: fade .18s ease; }
+.item .details .edit { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+.item .details .edit .input { height: 30px; font-size: 13px; }
+.item .details .edit .input.wide { flex: 1 1 260px; }
+.item.kept { grid-template-columns: minmax(0,1fr) auto; }
+.item.kept .details { grid-column: 1 / 3; display: block; padding: 2px 0 0; }
+.why { width: 28px; height: 28px; padding: 0; min-height: 28px; }
+
+/* ---------- Command bar (sticky) ---------- */
+.commandbar { position: fixed; left: 248px; right: 0; bottom: 0; padding: 12px 40px; background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(16px); border-top: 1px solid var(--stroke); display: flex; align-items: center; gap: 10px; z-index: 5;
+  animation: up .22s cubic-bezier(.2,.8,.2,1); }
+.commandbar .inner { max-width: 1000px; margin: 0 auto; width: 100%; display: flex; align-items: center; gap: 10px; }
+
+/* ---------- Done ---------- */
+.done { text-align: center; padding: 34px 20px 26px; }
+.done svg.tick { width: 64px; height: 64px; }
+.done svg.tick circle { fill: var(--ok-soft); }
+.done svg.tick path { fill: none; stroke: var(--ok); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 40; stroke-dashoffset: 40; animation: draw .45s .15s ease forwards; }
+.done h2 { font: 600 20px/28px var(--font-display); margin: 12px 0 4px; }
+.done .row { justify-content: center; margin-top: 18px; }
+
+/* ---------- Cleanup ---------- */
+.big { font: 600 32px/40px var(--font-display); }
+.cat { display: grid; grid-template-columns: 20px minmax(0,1fr) 140px 90px auto; align-items: center; gap: 4px 14px; padding: 12px 16px;
+  border-top: 1px solid var(--stroke); }
+.cat:first-child { border-top: 0; }
+.cat .bar { height: 6px; border-radius: 3px; background: var(--stroke); overflow: hidden; }
+.cat .bar > div { height: 100%; background: var(--accent); border-radius: 3px; transform-origin: left; animation: bar .6s cubic-bezier(.2,.8,.2,1) both; }
+.cat .size { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.cat .details { grid-column: 2 / 6; display: none; color: var(--text-2); font-size: 12px; line-height: 17px; padding-top: 4px; }
+.cat.open .details { display: block; animation: fade .18s ease; }
+.cat.blocked { opacity: .6; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+.stat b { display: block; font: 600 26px/32px var(--font-display); }
+.stat span { color: var(--text-2); font-size: 12px; }
+
+/* ---------- Tables ---------- */
+table { width: 100%; border-collapse: collapse; }
+td, th { text-align: left; padding: 10px 12px; border-top: 1px solid var(--stroke); vertical-align: middle; }
+th { color: var(--text-2); font-weight: 600; font-size: 12px; border-top: 0; }
+td.path { overflow-wrap: anywhere; color: var(--text-2); font-size: 13px; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.empty { text-align: center; padding: 30px 10px; color: var(--text-3); }
+
+/* ---------- Banner, toast, dialog ---------- */
+.banner { display: flex; gap: 12px; align-items: center; padding: 12px 16px; border-radius: var(--radius); margin-bottom: 12px;
+  border: 1px solid var(--stroke); background: var(--surface); animation: fade .2s ease; }
+.banner.info { background: var(--accent-soft); border-color: transparent; }
+.banner.warn { background: var(--warn-soft); border-color: transparent; }
+.toasts { position: fixed; right: 20px; bottom: 76px; display: flex; flex-direction: column; gap: 8px; z-index: 20; max-width: 420px; }
+.toast { background: var(--surface); border: 1px solid var(--stroke); border-left: 4px solid var(--accent); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg); padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; animation: toast-in .25s cubic-bezier(.2,.8,.2,1); }
+.toast.bad { border-left-color: var(--danger); } .toast.warn { border-left-color: #d29200; }
+.toast.out { animation: toast-out .2s ease forwards; }
+.toast .msg { flex: 1; }
+dialog { border: 1px solid var(--stroke); border-radius: 10px; background: var(--surface); color: var(--text); padding: 0;
+  width: min(480px, calc(100% - 40px)); box-shadow: var(--shadow-lg); }
+dialog[open] { animation: pop .18s cubic-bezier(.2,.8,.2,1); }
+dialog::backdrop { background: rgba(0,0,0,.32); animation: fade .18s ease; }
+dialog .dbody { padding: 22px 24px 18px; }
+dialog h3 { font: 600 20px/28px var(--font-display); margin: 0 0 8px; }
+dialog .dfoot { background: var(--surface-2); border-top: 1px solid var(--stroke); padding: 16px 24px; display: flex; gap: 8px; justify-content: flex-end; }
+dialog .dfoot .btn { min-width: 120px; }
+
+/* ---------- Splash ---------- */
+.splash { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: grid; place-items: center; transition: opacity .35s ease, visibility .35s; }
+.splash.gone { opacity: 0; visibility: hidden; }
+.splash .inner { text-align: center; animation: splash-in .5s cubic-bezier(.2,.8,.2,1); }
+.splash svg { width: 84px; height: 84px; animation: breathe 2.4s ease-in-out infinite; }
+.splash h1 { font: 600 26px/34px var(--font-display); margin: 16px 0 2px; }
+.splash p { margin: 0; color: var(--text-2); }
+.splash .dots { display: inline-flex; gap: 6px; margin-top: 22px; }
+.splash .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: dot 1s ease-in-out infinite; }
+.splash .dots i:nth-child(2) { animation-delay: .15s; } .splash .dots i:nth-child(3) { animation-delay: .3s; }
+
+/* ---------- Motion ---------- */
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes grow { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes indet { 0% { left: -30%; } 100% { left: 100%; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes bar { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { to { opacity: 0; transform: translateX(24px); } }
+@keyframes splash-in { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+@keyframes dot { 0%,100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 64px 1fr; } .nav .lbl, .brand b, .nav .foot, .nav .badge-count { display: none; }
+  .commandbar { left: 64px; padding: 10px 16px; } main { padding: 20px 16px 110px; }
+  .item { grid-template-columns: 20px minmax(0,1fr) auto; } .item .conf { display: none; }
+  .cat { grid-template-columns: 20px minmax(0,1fr) auto; } .cat .bar { display: none; }
+}
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <h1>SlothFile <small>Do the tedious tidying for you, safely.</small></h1>
-    <span class="chip" id="privacy">Runs on this computer only</span>
-  </header>
+<!-- Logo used across the app -->
+<svg width="0" height="0" class="sprite" aria-hidden="true">
+  <defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#408C64"/><stop offset="1" stop-color="#1E563C"/></linearGradient>
+    <symbol id="logo" viewBox="0 0 100 100">
+      <rect x="3" y="3" width="94" height="94" rx="23" fill="url(#lg)"/>
+      <ellipse cx="50" cy="52" rx="33" ry="30" fill="#F6ECDC"/>
+      <ellipse cx="35.5" cy="50.25" rx="12.5" ry="7.25" fill="#5C4636" transform="rotate(-14 35.5 50.25)"/>
+      <ellipse cx="64.5" cy="50.25" rx="12.5" ry="7.25" fill="#5C4636" transform="rotate(14 64.5 50.25)"/>
+      <path d="M30.8 52.2 Q36 56.2 41.2 52.2 M58.8 52.2 Q64 56.2 69.2 52.2" fill="none" stroke="#F6ECDC" stroke-width="2.4" stroke-linecap="round"/>
+      <ellipse cx="50" cy="61.1" rx="3.8" ry="2.65" fill="#34261C"/>
+      <path d="M44.6 66.6 Q50 71.4 55.4 66.6" fill="none" stroke="#34261C" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</svg>
 
-  <nav class="tabs" role="tablist">
-    <button role="tab" data-tab="organize" aria-selected="true">Organize</button>
-    <button role="tab" data-tab="cleanup" aria-selected="false">Storage cleanup</button>
-    <button role="tab" data-tab="auto" aria-selected="false">Automation &amp; settings</button>
-    <button role="tab" data-tab="summary" aria-selected="false">Summary</button>
+<div class="splash" id="splash" role="status" aria-label="Starting SlothFile">
+  <div class="inner">
+    <svg><use href="#logo"/></svg>
+    <h1>SlothFile</h1>
+    <p>Tidy files safely, right on your PC</p>
+    <div class="dots"><i></i><i></i><i></i></div>
+  </div>
+</div>
+
+<div class="app">
+  <nav class="nav" aria-label="Main">
+    <div class="brand"><svg aria-hidden="true"><use href="#logo"/></svg><b>SlothFile</b></div>
+    <button data-page="organize" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h8M8 16h5"/></svg><span class="lbl">Organize</span><span class="badge-count hidden" id="pending-count"></span></button>
+    <button data-page="cleanup"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span class="lbl">Clean up</span></button>
+    <button data-page="auto"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg><span class="lbl">Automation</span></button>
+    <button data-page="history"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg><span class="lbl">History</span></button>
+    <div class="spacer"></div>
+    <button data-page="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="lbl">Settings</span></button>
+    <div class="foot" id="nav-foot">Runs on this PC only</div>
   </nav>
 
-  <div id="notice" class="notice hidden" role="status"></div>
-
-  <!-- ============================== ORGANIZE ============================== -->
-  <section data-panel="organize">
-    <div id="pending-banner" class="notice warn hidden"></div>
-    <section class="card" id="step-folder">
-      <h2>1. Choose one folder</h2>
-      <div class="row">
-        <input type="text" class="grow" id="folder" placeholder="C:\Users\you\Downloads" aria-label="Folder to tidy" spellcheck="false">
-        <button id="pick">Browse…</button>
+  <main id="main">
+    <!-- ======================= ORGANIZE ======================= -->
+    <section class="page" data-page="organize">
+      <div class="page-head"><h1>Organize</h1><p>Pick a folder. SlothFile suggests a tidy layout, you approve it, and you can always undo.</p></div>
+      <div id="pending-banner" class="banner info hidden"></div>
+      <div class="stepper" aria-hidden="true">
+        <div id="st-1" class="on"><span>1</span>Choose folder</div>
+        <div id="st-2"><span>2</span>Review</div>
+        <div id="st-3"><span>3</span>Done</div>
       </div>
-      <div class="row mt12 between">
-        <label class="toggle"><input type="checkbox" id="use-model"> <span id="model-label">Use local Gemma model for documents</span></label>
-        <button class="primary" id="preview">Preview plan</button>
-      </div>
-      <p class="hint">Scanning only reads files. Only the top level of the folder is considered; subfolders, hidden files and
-        anything suspicious are left alone. Nothing moves until you approve.</p>
-      <div class="bar hidden" id="bar"><div></div></div>
-      <p class="hint hidden" id="progress-text"></p>
-    </section>
 
-    <section class="card hidden" id="step-plan">
-      <h2>2. Review the plan</h2>
-      <div class="summary" id="summary"></div>
-      <p class="hint flush">Change a file's folder with the menu on the right: after the same correction twice, SlothFile remembers.</p>
-      <div id="groups"></div>
-    </section>
-
-    <section class="card hidden" id="step-result">
-      <h2>3. Done</h2>
-      <div id="result"></div>
-    </section>
-
-    <section class="card">
-      <h2>History</h2>
-      <p class="hint flush">Every run is recorded in a journal. Undo puts files back where they were and never overwrites anything.</p>
-      <div id="history"></div>
-    </section>
-  </section>
-
-  <!-- ============================== CLEANUP ============================== -->
-  <section data-panel="cleanup" class="hidden">
-    <section class="card">
-      <h2>Storage cleanup</h2>
-      <p class="hint flush">Finds temporary files and caches in your user folders (the safe version of Windows+R → <code>%temp%</code>).
-        Only files older than a day, of known temporary types, in known cache folders are offered. Personal-looking and
-        unknown files are always kept. Nothing is removed until you choose and confirm.</p>
-      <div class="row mt12"><button class="primary" id="clean-scan">Scan for reclaimable space</button></div>
-      <div class="bar hidden" id="clean-bar"><div></div></div>
-    </section>
-
-    <section class="card hidden" id="clean-results">
-      <div class="row between">
-        <div><div class="big" id="clean-total"></div><div class="hint flush" id="clean-sub"></div></div>
-        <div class="row">
-          <label class="toggle"><input type="radio" name="clean-mode" value="recycle" checked> Move to Recycle Bin (recoverable)</label>
-          <label class="toggle"><input type="radio" name="clean-mode" value="delete"> Delete permanently</label>
+      <div id="org-choose" class="card">
+        <h2>Which folder should SlothFile tidy?</h2>
+        <p class="sub">Only files directly inside it are considered. Subfolders and anything suspicious are left alone.</p>
+        <div class="picker">
+          <input class="input" id="folder" placeholder="C:\Users\you\Downloads" aria-label="Folder to tidy" spellcheck="false">
+          <button class="btn" id="pick"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Browse</button>
+        </div>
+        <div class="quick" id="quick"></div>
+        <div class="row mt18">
+          <label class="row grow"><span class="switch"><input type="checkbox" id="use-model"><i></i></span><span id="model-label" class="muted">Use local AI for documents</span></label>
+          <button class="btn primary lg" id="scan"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Scan folder</button>
+        </div>
+        <div id="scan-progress" class="hidden">
+          <div class="progress" id="scan-bar"><div></div></div>
+          <p class="small muted m8" id="scan-text"></p>
         </div>
       </div>
-      <div id="clean-cats" class="mt12"></div>
-      <details class="mt12" id="clean-protected"><summary></summary><div></div></details>
-      <div class="row mt12 end"><button class="primary" id="clean-go">Clean selected files</button></div>
-      <div id="clean-outcome" class="mt12"></div>
-    </section>
 
-    <section class="card">
-      <h2>Recycle Bin</h2>
-      <p class="hint flush" id="bin-info">Scan to see how much the Recycle Bin holds.</p>
-      <div class="row mt12"><button class="danger" id="bin-empty" disabled>Empty Recycle Bin…</button></div>
-      <p class="hint">Emptying is permanent. SlothFile asks separately and never does it as part of another action.</p>
-    </section>
-
-    <section class="card">
-      <h2>What SlothFile deliberately doesn't touch</h2>
-      <p class="hint flush"><b>C:\Windows\Temp</b> and <b>Windows Update</b> files need administrator rights. Use Windows' own
-        <i>Settings → System → Storage → Temporary files</i> for those. <b>Prefetch</b> is not clutter: clearing it makes apps start
-        slower. SlothFile never asks for administrator rights.</p>
-    </section>
-  </section>
-
-  <!-- ============================== AUTOMATION ============================== -->
-  <section data-panel="auto" class="hidden">
-    <section class="card">
-      <h2>Do it for me</h2>
-      <p class="hint flush">The automatic run moves only the kinds of file you trust below, and only when the rules are very sure.
-        Documents and anything the AI influenced always wait for your review. Every automatic run can be undone from History.</p>
-      <div class="row mt12">
-        <button class="primary" id="auto-now">Tidy the chosen folder automatically now</button>
+      <div id="org-review" class="hidden">
+        <div class="card folderline">
+          <svg viewBox="0 0 24 24" class="fl-icon"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <div class="grow"><div class="tiny">Folder</div><div class="fl-path" id="review-folder"></div></div>
+          <button class="btn" id="review-change">Change folder</button>
+        </div>
+        <div class="summary-bar" id="summary"></div>
+        <div id="groups"></div>
       </div>
-      <div id="auto-outcome" class="hint"></div>
-      <h3>Schedule</h3>
-      <div class="row">
-        <span>Every day at</span><input type="time" id="sched-at" value="20:00" aria-label="Time">
-        <button id="sched-add">Schedule the chosen folder</button>
-        <button id="sched-summary">Weekly summary notification (Sundays 18:00)</button>
-      </div>
-      <div id="sched-list" class="mt12"></div>
-      <p class="hint">Watching a folder continuously: run <code>slothfile watch "C:\path\to\Downloads"</code> in a terminal.</p>
-      <h3>Shortcuts</h3>
-      <div class="grid2">
-        <label class="toggle"><input type="checkbox" id="ctx-menu"> "Tidy with SlothFile" in the Explorer right-click menu</label>
-        <label class="toggle"><input type="checkbox" id="run-alias"> Open SlothFile from Windows+R by typing <code>slothfile</code></label>
+
+      <div id="org-done" class="card hidden">
+        <div class="done">
+          <svg class="tick" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30"/><path d="M20 33l8 8 16-17"/></svg>
+          <h2 id="done-title">All done</h2>
+          <p class="muted" id="done-text"></p>
+          <div class="row"><button class="btn" id="done-undo">Undo this run</button><button class="btn primary" id="done-again">Organize another folder</button></div>
+        </div>
+        <div id="done-issues"></div>
       </div>
     </section>
 
-    <section class="card">
-      <h2>Settings</h2>
-      <div class="grid2" id="settings-form"></div>
-      <h3>Moved automatically without asking</h3>
-      <div class="grid2" id="settings-cats"></div>
-      <div class="row mt12 end"><button class="primary" id="settings-save">Save settings</button></div>
+    <!-- ======================= CLEAN UP ======================= -->
+    <section class="page hidden" data-page="cleanup">
+      <div class="page-head"><h1>Clean up</h1><p>Free disk space from temporary files and caches. Personal files and anything unknown are never touched.</p></div>
+      <div class="card" id="clean-start">
+        <div class="row">
+          <div class="grow"><h2>Find reclaimable space</h2><p class="sub m0">Scanning only reads file sizes and dates. Nothing is removed until you choose.</p></div>
+          <button class="btn primary lg" id="clean-scan">Scan</button>
+        </div>
+        <div class="progress indet hidden" id="clean-bar"><div></div></div>
+      </div>
+      <div id="clean-results" class="hidden">
+        <div class="card">
+          <div class="row">
+            <div class="grow"><div class="big" id="clean-total">0 bytes</div><div class="muted small" id="clean-sub"></div></div>
+            <div class="seg" id="clean-mode" role="group" aria-label="How to remove">
+              <button data-mode="recycle" aria-pressed="true">Recycle Bin</button><button data-mode="delete" aria-pressed="false">Delete permanently</button>
+            </div>
+            <button class="btn primary" id="clean-go">Clean selected</button>
+          </div>
+          <p class="tiny m10" id="clean-mode-hint">Recoverable from the Recycle Bin. Space is freed when you empty it.</p>
+        </div>
+        <div class="card p0" id="clean-cats"></div>
+        <p class="small muted" id="clean-protected"></p>
+        <div id="clean-outcome"></div>
+      </div>
+      <div class="section-title">Recycle Bin</div>
+      <div class="setting solo">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>
+        <div class="label"><b id="bin-info">Scan to see how much the Recycle Bin holds</b><span>Emptying is permanent and never part of another action.</span></div>
+        <button class="btn" id="bin-empty" disabled>Empty Recycle Bin</button>
+      </div>
+      <p class="small muted mt14">SlothFile never asks for administrator rights and never touches C:\Windows\Temp, Windows Update files or Prefetch.
+        Use Windows Settings → System → Storage for those.</p>
     </section>
 
-    <section class="card">
-      <h2>What SlothFile learned from you</h2>
-      <div id="learned"></div>
+    <!-- ======================= AUTOMATION ======================= -->
+    <section class="page hidden" data-page="auto">
+      <div class="page-head"><h1>Automation</h1><p>Let SlothFile tidy by itself. It only moves the kinds of file you trust; everything else waits for you.</p></div>
+      <div class="card">
+        <div class="row">
+          <div class="grow"><h2>Tidy now</h2><p class="sub m0" id="auto-folder-text"></p></div>
+          <button class="btn primary" id="auto-now">Tidy automatically</button>
+        </div>
+        <p class="small muted hidden m12" id="auto-outcome"></p>
+      </div>
+      <div class="section-title">Schedule</div>
+      <div class="setting first">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <div class="label"><b>Tidy every day</b><span id="sched-text">Runs in the background with Windows Task Scheduler. No admin rights needed.</span></div>
+        <input type="time" class="input" id="sched-at" value="20:00" aria-label="Time">
+        <span class="switch"><input type="checkbox" id="sched-daily" aria-label="Tidy every day"><i></i></span>
+      </div>
+      <div class="setting last">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4"/></svg>
+        <div class="label"><b>Weekly summary</b><span>A notification every Sunday at 18:00 with what SlothFile did.</span></div>
+        <span class="switch"><input type="checkbox" id="sched-weekly" aria-label="Weekly summary"><i></i></span>
+      </div>
+      <p class="small muted mt12">Choose which kinds of file move without asking in <a href="#" id="go-trusted">Settings → Automatic tidy</a>.</p>
     </section>
-  </section>
 
-  <!-- ============================== SUMMARY ============================== -->
-  <section data-panel="summary" class="hidden">
-    <section class="card">
-      <h2>This week</h2>
-      <p id="summary-text"></p>
-      <div id="summary-table"></div>
+    <!-- ======================= HISTORY ======================= -->
+    <section class="page hidden" data-page="history">
+      <div class="page-head"><h1>History</h1><p>Every run is journaled. Undo puts files back exactly where they were and never overwrites anything.</p></div>
+      <div class="stats" id="stats"></div>
+      <div class="card p6" id="history"></div>
     </section>
-  </section>
-  <p class="hint credits">SlothFile by Bishesh Marasini · MIT License · Local AI: Gemma 4 (Apache 2.0) via Ollama ·
-    Move predictions: Built with PriorLabs-TabPFN (when installed) · Text from scans: Windows OCR</p>
-</main>
 
-<footer class="actions hidden" id="actions">
-  <div class="row">
-    <span id="selected-count"></span>
-    <div class="row">
-      <button id="cancel">Cancel</button>
-      <button class="primary" id="approve">Move files</button>
-    </div>
-  </div>
-</footer>
+    <!-- ======================= SETTINGS ======================= -->
+    <section class="page hidden" data-page="settings">
+      <div class="page-head"><h1>Settings</h1><p>Changes are saved automatically.</p></div>
+
+      <div class="section-title">General</div>
+      <div class="setting first">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <div class="label"><b>Default folder</b><span id="def-folder-text">Pre-filled when SlothFile opens</span></div>
+        <button class="btn" id="def-folder-pick">Change</button>
+      </div>
+      <div class="setting last">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <div class="label"><b>Theme</b><span>Follow Windows, or choose light or dark</span></div>
+        <div class="seg" id="theme" role="group" aria-label="Theme"><button data-v="system">System</button><button data-v="light">Light</button><button data-v="dark">Dark</button></div>
+      </div>
+
+      <div class="section-title">Local AI (Gemma 4)</div>
+      <div class="setting first stack">
+        <div class="row">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 3l1.9 4.7L19 9.6l-4 3.4 1.2 5L12 15.3 7.8 18l1.2-5-4-3.4 5.1-1.9z"/></svg>
+          <div class="label grow"><b id="ai-title">Checking local AI…</b><span id="ai-text">Gemma reads short excerpts of documents to choose folders and names. It runs on this PC; nothing is uploaded.</span></div>
+          <button class="btn" id="ai-setup">Set up</button>
+        </div>
+        <div id="ai-progress" class="hidden"><div class="progress"><div></div></div><p class="tiny m6" id="ai-stage"></p></div>
+      </div>
+      <div class="setting last">
+        <div class="label"><b>Use local AI for documents</b><span>When off, SlothFile uses its built-in rules only.</span></div>
+        <span class="switch"><input type="checkbox" data-setting="use_model"><i></i></span>
+      </div>
+
+      <div class="section-title">Smart predictions (TabPFN)</div>
+      <div class="setting first">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+        <div class="label"><b id="pred-title">Learns which moves you accept</b><span id="pred-text">After about 30 reviewed moves, the automatic tidy only moves files you'd very likely approve, and the plan flags the ones you usually change.</span></div>
+        <span class="switch"><input type="checkbox" data-setting="use_predictor"><i></i></span>
+      </div>
+      <div class="setting last"><div class="label"><span>Built with PriorLabs-TabPFN. Runs on this PC. Only file features are kept (type, size, folder chosen), never names or contents.</span></div></div>
+
+      <div class="section-title">Organizing</div>
+      <div class="setting first"><div class="label"><b>Read scanned PDFs and photos of documents</b><span>Uses Windows' built-in text recognition (OCR)</span></div><span class="switch"><input type="checkbox" data-setting="ocr"><i></i></span></div>
+      <div class="setting"><div class="label"><b>Sort camera photos by date</b><span>Into Images\Year\Month, using the date the photo was taken</span></div><span class="switch"><input type="checkbox" data-setting="photos_by_date"><i></i></span></div>
+      <div class="setting"><div class="label"><b>Find similar copies</b><span>Re-saved documents and resized photos. Suggested unticked.</span></div><span class="switch"><input type="checkbox" data-setting="near_duplicates"><i></i></span></div>
+      <div class="setting"><div class="label"><b>Unpack .zip files</b><span>Into Archives\&lt;name&gt; after checking they are safe</span></div><span class="switch"><input type="checkbox" data-setting="unpack_zip_archives"><i></i></span></div>
+      <div class="setting last"><div class="label"><b>Suggest removing old installers after</b><span>Days. 0 turns it off. Suggestions start unticked and go to the Recycle Bin only after you confirm.</span></div><input class="input num" type="number" min="0" step="1" data-setting="recycle_old_installers_days" aria-label="Days"></div>
+
+      <div class="section-title" id="trusted-title">Automatic tidy</div>
+      <div class="setting first stack">
+        <div class="label"><b>Kinds of file moved without asking</b><span>Documents are best left for you to review.</span></div>
+        <div class="cat-grid" id="trusted"></div>
+      </div>
+      <div class="setting"><div class="label"><b>Minimum confidence</b><span id="conf-text">The rules must be at least this sure</span></div>
+        <input type="range" min="50" max="100" step="5" id="conf" aria-label="Minimum confidence"></div>
+      <div class="setting last"><div class="label"><b>Notify when at least</b><span>files were handled</span></div><input class="input num" type="number" min="0" step="1" data-setting="notify_min_files" aria-label="Files"></div>
+
+      <div class="section-title">Shortcuts</div>
+      <div class="setting first"><div class="label"><b>"Tidy with SlothFile" in the right-click menu</b><span>On folders in File Explorer (Windows 11: Show more options)</span></div><span class="switch"><input type="checkbox" id="ctx-menu"><i></i></span></div>
+      <div class="setting last"><div class="label"><b>Open from Windows+R</b><span>Type slothfile in the Run box</span></div><span class="switch"><input type="checkbox" id="run-alias"><i></i></span></div>
+
+      <div class="section-title">Privacy &amp; learning</div>
+      <div class="setting first stack"><div class="label"><b>What SlothFile learned from you</b><span>When you change a file's folder twice, SlothFile remembers it.</span></div><div id="learned"></div></div>
+      <div class="setting last"><div class="label"><b>Forget everything</b><span>Learned rules and the history used for predictions. Your files are not touched.</span></div><button class="btn" id="forget-all">Forget</button></div>
+
+      <div class="section-title">About</div>
+      <div class="setting solo">
+        <svg class="icon about-logo" viewBox="0 0 100 100"><use href="#logo"/></svg>
+        <div class="label"><b>SlothFile <span id="ver"></span></b><span>Created by Bishesh Marasini · MIT License · github.com/marasinibishesh/SlothFile</span>
+          <span>Local AI: Gemma 4 (Apache 2.0) via Ollama · Predictions: Built with PriorLabs-TabPFN · Text from scans: Windows OCR</span></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="commandbar hidden" id="commandbar"><div class="inner">
+  <span id="selected-count" class="muted"></span>
+  <button class="btn subtle right" id="sel-all">Select all</button>
+  <button class="btn" id="cancel">Cancel</button>
+  <button class="btn primary" id="approve">Move files</button>
+</div></div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
 
 <dialog id="confirm">
-  <h2 id="confirm-title">Are you sure?</h2>
-  <p id="confirm-body"></p>
-  <div id="confirm-typed" class="hidden"><p class="hint flush" id="confirm-typed-label"></p>
-    <input type="text" id="confirm-input" autocomplete="off" spellcheck="false" aria-label="Confirmation word"></div>
-  <div class="row end mt12">
-    <button id="confirm-no">Go back</button>
-    <button class="primary" id="confirm-yes">Yes</button>
+  <div class="dbody">
+    <h3 id="confirm-title">Are you sure?</h3>
+    <p id="confirm-body" class="muted"></p>
+    <div id="confirm-typed" class="hidden"><p class="small" id="confirm-typed-label"></p>
+      <input class="input full" id="confirm-input" autocomplete="off" spellcheck="false" aria-label="Confirmation word"></div>
   </div>
+  <div class="dfoot"><button class="btn" id="confirm-no">Cancel</button><button class="btn primary" id="confirm-yes">OK</button></div>
 </dialog>
 
 <script nonce="{{NONCE}}">
@@ -260,34 +534,40 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
 const TOKEN = new URLSearchParams(location.search).get("t") || "";
 history.replaceState(null, "", "/");  // keep the token out of the visible URL
 const $ = (id) => document.getElementById(id);
-let plan = null, categories = {}, settings = null, cleanReport = null;
+const S = { plan: null, settings: null, categories: {}, clean: null, cleanMode: "recycle", run: null, home: {} };
 
+/* ---------- helpers ---------- */
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
-    if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else e[k] = v;
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v;
+    else if (k.startsWith("data-")) e.setAttribute(k, v); else e[k] = v;
   }
   for (const k of kids) if (k != null) e.append(k);
   return e;
 }
+function svgIcon(path, cls = "") {
+  const ns = "http://www.w3.org/2000/svg";
+  const s = document.createElementNS(ns, "svg"); s.setAttribute("viewBox", "0 0 24 24"); if (cls) s.setAttribute("class", cls);
+  const p = document.createElementNS(ns, "path"); p.setAttribute("d", path); s.append(p); return s;
+}
+const ICON = { chev: "m6 9 6 6 6-6", info: "M12 16v-4M12 8h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z",
+  folder: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" };
 const bytes = (n) => { const u = ["bytes", "KB", "MB", "GB", "TB"]; let i = 0; n = Number(n) || 0;
   while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; } return (i ? n.toFixed(1) : n) + " " + u[i]; };
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 async function api(path, body) {
   const opts = { headers: { "X-SlothFile-Token": TOKEN } };
-  if (body !== undefined) {
-    opts.method = "POST";
-    opts.headers["Content-Type"] = "application/json";
-    opts.body = JSON.stringify(body);
-  }
+  if (body !== undefined) { opts.method = "POST"; opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
   const r = await fetch(path, opts);
-  const data = await r.json().catch(() => ({ error: "bad response" }));
+  const data = await r.json().catch(() => ({ error: "Unexpected response" }));
   if (!r.ok) { const err = new Error(data.error || r.statusText); err.data = data; throw err; }
   return data;
 }
 async function waitJob(id, onTick) {
   for (;;) {
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 350));
     const j = await api("/api/job/" + id);
     if (onTick) onTick(j);
     if (j.state === "error") throw new Error(j.error);
@@ -295,580 +575,531 @@ async function waitJob(id, onTick) {
   }
 }
 
-function notice(kind, text, action) {
-  const n = $("notice");
-  n.className = "notice " + kind;
-  n.replaceChildren(el("span", { text }));
-  if (action) n.append(" ", action);
-  n.classList.toggle("hidden", !text);
+/* ---------- toasts & dialogs ---------- */
+function toast(text, kind = "ok", action) {
+  const t = el("div", { class: "toast " + kind }, el("div", { class: "msg", text }));
+  if (action) t.append(action);
+  const close = el("button", { class: "btn subtle", text: "✕", title: "Dismiss" });
+  close.onclick = () => dismiss(t);
+  t.append(close);
+  $("toasts").append(t);
+  if (!action) setTimeout(() => dismiss(t), kind === "bad" ? 9000 : 4500);
 }
+function dismiss(t) { t.classList.add("out"); setTimeout(() => t.remove(), 220); }
 function handleError(e) {
   if (e.data && e.data.needs_recovery) {
-    const btn = el("button", { text: "Recover now" });
-    btn.onclick = async () => {
-      try {
-        const r = await api("/api/recover", { folder: $("folder").value });
-        notice("ok", `Recovered ${r.reports.length} interrupted run(s). The journal now matches the disk; you can undo them from History.`);
-        loadHistory();
-      } catch (e2) { notice("bad", e2.message); }
+    const b = el("button", { class: "btn", text: "Recover" });
+    b.onclick = async () => {
+      try { const r = await api("/api/recover", { folder: $("folder").value });
+        toast(`Recovered ${plural(r.reports.length, "interrupted run")}. You can undo it from History.`); loadHistory(); }
+      catch (e2) { toast(e2.message, "bad"); }
     };
-    notice("warn", e.message + " SlothFile will check every file against the journal before continuing.", btn);
-  } else {
-    notice("bad", e.message);
-  }
+    toast(e.message + " SlothFile will check every file against its journal first.", "warn", b);
+  } else toast(e.message, "bad");
 }
-
-// Generic confirmation; `word` makes the user type it (for irreversible actions).
-function confirmDialog({ title, body, yes = "Yes", danger = false, word = null }) {
+function confirmDialog({ title, body, yes = "OK", danger = false, word = null }) {
   return new Promise((resolve) => {
-    $("confirm-title").textContent = title;
-    $("confirm-body").textContent = body;
-    $("confirm-yes").textContent = yes;
-    $("confirm-yes").className = danger ? "danger" : "primary";
-    $("confirm-typed").classList.toggle("hidden", !word);
-    $("confirm-input").value = "";
-    $("confirm-yes").disabled = !!word;
-    if (word) {
-      $("confirm-typed-label").textContent = `Type ${word} to confirm.`;
-      $("confirm-input").oninput = () => { $("confirm-yes").disabled = $("confirm-input").value.trim() !== word; };
-    }
+    $("confirm-title").textContent = title; $("confirm-body").textContent = body;
+    $("confirm-yes").textContent = yes; $("confirm-yes").className = "btn " + (danger ? "danger" : "primary");
+    $("confirm-typed").classList.toggle("hidden", !word); $("confirm-input").value = ""; $("confirm-yes").disabled = !!word;
+    if (word) { $("confirm-typed-label").textContent = `Type ${word} to confirm.`;
+      $("confirm-input").oninput = () => { $("confirm-yes").disabled = $("confirm-input").value.trim() !== word; }; }
     const done = (v) => { $("confirm").close(); resolve(v); };
-    $("confirm-yes").onclick = () => done(true);
-    $("confirm-no").onclick = () => done(false);
+    $("confirm-yes").onclick = () => done(true); $("confirm-no").onclick = () => done(false);
     $("confirm").oncancel = () => resolve(false);
     $("confirm").showModal();
+    if (word) $("confirm-input").focus();
   });
 }
 
-// ---------------------------------------------------------------- tabs
-document.querySelectorAll("nav.tabs button").forEach((b) => b.onclick = () => showTab(b.dataset.tab));
-function showTab(name) {
-  document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
-  document.querySelectorAll("[data-panel]").forEach((p) => p.classList.toggle("hidden", p.dataset.panel !== name));
-  $("actions").classList.toggle("hidden", !(name === "organize" && plan));
+/* ---------- theme ---------- */
+const media = window.matchMedia("(prefers-color-scheme: dark)");
+function applyTheme(t) {
+  const dark = t === "dark" || (t !== "light" && media.matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  document.querySelectorAll("#theme button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === (t || "system"))));
+}
+media.addEventListener("change", () => applyTheme(S.settings ? S.settings.theme : "system"));
+
+/* ---------- navigation ---------- */
+document.querySelectorAll(".nav button[data-page]").forEach((b) => b.onclick = () => showPage(b.dataset.page));
+function showPage(name) {
+  document.querySelectorAll(".nav button[data-page]").forEach((b) => b.toggleAttribute("aria-current", b.dataset.page === name));
+  document.querySelectorAll(".nav button[aria-current]").forEach((b) => b.setAttribute("aria-current", "page"));
+  document.querySelectorAll("main .page").forEach((p) => {
+    const on = p.dataset.page === name;
+    if (on && p.classList.contains("hidden")) { p.classList.remove("hidden"); p.style.animation = "none"; void p.offsetWidth; p.style.animation = ""; }
+    else if (!on) p.classList.add("hidden");
+  });
+  $("commandbar").classList.toggle("hidden", !(name === "organize" && S.plan));
+  $("main").scrollTop = 0;
   if (name === "auto") loadAutomation();
-  if (name === "summary") loadSummary();
+  if (name === "history") loadHistory();
+  if (name === "settings") loadSettingsPage();
+  if (name === "cleanup" && !S.clean) {}
 }
 
-// ---------------------------------------------------------------- organize
+/* ---------- startup ---------- */
 async function init() {
+  const started = performance.now();
   try {
-    const s = await api("/api/state");
-    if (s.initial_folder) $("folder").value = s.initial_folder;
-    renderHistory(s.runs);
-    const st = await api("/api/settings");
-    settings = st.settings; categories = st.categories;
-    const m = await api("/api/model");
-    $("use-model").checked = m.available && settings.use_model;
-    $("use-model").disabled = !m.available;
-    $("model-label").textContent = m.available
-      ? `Use local Gemma model for documents (${m.status})`
-      : `Local model unavailable - rules only (${m.status})`;
-    const a = await api("/api/automation");
-    showPending(a.pending);
+    const [st, set] = await Promise.all([api("/api/state"), api("/api/settings")]);
+    S.settings = set.settings; S.categories = set.categories; S.home = st.home_folders || {};
+    applyTheme(S.settings.theme);
+    if (st.version) { $("ver").textContent = st.version; $("nav-foot").textContent = `Version ${st.version} · runs on this PC only`; }
+    $("folder").value = st.initial_folder || S.settings.default_folder || S.home.Downloads || "";
+    renderQuick();
+    refreshModelToggle();
+    api("/api/automation").then((a) => showPending(a.pending)).catch(() => {});
   } catch (e) { handleError(e); }
+  const wait = Math.max(0, 650 - (performance.now() - started));  // let the splash breathe, briefly
+  setTimeout(() => $("splash").classList.add("gone"), wait);
+}
+function renderQuick() {
+  const q = $("quick"); q.replaceChildren();
+  for (const [label, path] of Object.entries(S.home)) {
+    const c = el("button", { class: "chip btnlike", title: path }, svgIcon(ICON.folder), label);
+    c.querySelector("svg").setAttribute("width", "14"); c.querySelector("svg").setAttribute("height", "14");
+    c.querySelector("svg").setAttribute("fill", "none"); c.querySelector("svg").setAttribute("stroke", "currentColor");
+    c.onclick = () => { $("folder").value = path; };
+    q.append(c);
+  }
+}
+async function refreshModelToggle() {
+  try {
+    const m = await api("/api/model");
+    $("use-model").checked = m.available && S.settings.use_model;
+    $("use-model").disabled = !m.available;
+    $("model-label").textContent = m.available ? "Use local AI (Gemma) for documents" : "Local AI not set up (Settings → Local AI)";
+  } catch (e) { /* the toggle just stays off */ }
 }
 
+/* ---------- organize ---------- */
+function setStep(n) {
+  [1, 2, 3].forEach((i) => { $("st-" + i).className = i < n ? "done" : i === n ? "on" : ""; });
+  $("org-choose").classList.toggle("hidden", n !== 1);
+  $("org-review").classList.toggle("hidden", n !== 2);
+  $("org-done").classList.toggle("hidden", n !== 3);
+  $("commandbar").classList.toggle("hidden", n !== 2);
+}
 function showPending(p) {
-  const b = $("pending-banner");
-  if (!p || !p.waiting) { b.classList.add("hidden"); return; }
-  const btn = el("button", { text: "Review them" });
+  const b = $("pending-banner"), c = $("pending-count");
+  if (!p || !p.waiting) { b.classList.add("hidden"); c.classList.add("hidden"); return; }
+  c.textContent = p.waiting; c.classList.remove("hidden");
+  const btn = el("button", { class: "btn primary right", text: "Review" });
   btn.onclick = async () => {
-    try { plan = await api("/api/plan-get", { plan_id: p.plan_id }); $("folder").value = p.folder; renderPlan(); }
+    try { S.plan = await api("/api/plan-get", { plan_id: p.plan_id }); $("folder").value = p.folder; renderPlan(); }
     catch (e) { handleError(e); }
   };
-  b.replaceChildren(el("span", { text: `The automatic run left ${p.waiting} file(s) in ${p.folder} for you to review. ` }), btn);
+  b.replaceChildren(el("span", { text: `The automatic tidy left ${plural(p.waiting, "file")} in ${p.folder} for you to check.` }), btn);
   b.classList.remove("hidden");
 }
-
-$("pick").onclick = async () => {
+$("pick").onclick = () => pickInto($("folder"));
+async function pickInto(input) {
   try {
-    // In the desktop app, use the native Windows folder dialog.
     if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_folder) {
-      const folder = await window.pywebview.api.pick_folder();
-      if (folder) $("folder").value = folder;
-      return;
+      const f = await window.pywebview.api.pick_folder(); if (f) input.value = f; return f;
     }
-    const r = await api("/api/pick-folder", {});
-    if (r.folder) $("folder").value = r.folder;
+    const r = await api("/api/pick-folder", {}); if (r.folder) input.value = r.folder; return r.folder;
   } catch (e) { handleError(e); }
-};
-
-$("preview").onclick = async () => {
-  notice("", "");
-  $("step-result").classList.add("hidden");
-  $("preview").disabled = true;
-  $("bar").classList.remove("hidden");
-  $("progress-text").classList.remove("hidden");
-  $("progress-text").textContent = "Scanning (read-only)…";
+}
+$("scan").onclick = async () => {
+  if (!$("folder").value.trim()) { toast("Choose a folder first.", "warn"); return; }
+  $("scan").disabled = true; $("scan-progress").classList.remove("hidden");
+  const bar = $("scan-bar"); bar.classList.add("indet"); $("scan-text").textContent = "Reading files (nothing is changed)…";
   try {
-    const { job } = await api("/api/plan", { folder: $("folder").value, use_model: $("use-model").checked });
+    const { job } = await api("/api/plan", { folder: $("folder").value.trim(), use_model: $("use-model").checked });
     const j = await waitJob(job, (j) => {
-      const pct = j.total ? Math.round((100 * j.done) / j.total) : 5;
-      $("bar").firstElementChild.style.width = pct + "%";
-      if (j.total) $("progress-text").textContent = `Analysing ${j.done} of ${j.total}: ${j.current}`;
+      if (j.total) { bar.classList.remove("indet"); bar.firstElementChild.style.width = Math.round(100 * j.done / j.total) + "%";
+        $("scan-text").textContent = `Looking at ${j.done} of ${j.total}: ${j.current}`; }
     });
-    plan = j.plan;
-    renderPlan();
+    S.plan = j.plan; renderPlan();
   } catch (e) { handleError(e); }
-  finally {
-    $("preview").disabled = false;
-    $("bar").classList.add("hidden");
-    $("progress-text").classList.add("hidden");
-  }
+  finally { $("scan").disabled = false; $("scan-progress").classList.add("hidden"); bar.firstElementChild.style.width = "0"; }
 };
 
-function confPill(c) {
-  return el("span", { class: "pill" + (c < 0.8 ? " mid" : ""), text: Math.round(c * 100) + "% sure", title: "confidence" });
+function confidence(c) {
+  return el("span", { class: "conf", title: "How sure SlothFile is" }, el("i", { class: c < 0.8 ? "mid" : "" }), Math.round(c * 100) + "%");
 }
 function folderSelect(p) {
-  const s = el("select", { ariaLabel: "Folder for " + p.rel_path });
-  s.dataset.rel = p.rel_path;
-  s.className = "override";
-  for (const [key, label] of Object.entries(categories)) {
+  const s = el("select", { class: "input", title: "Folder" }); s.dataset.rel = p.rel_path; s.dataset.orig = p.category; s.className = "input override";
+  for (const [key, label] of Object.entries(S.categories)) {
     if (key === "duplicates" && p.category !== "duplicates") continue;
-    s.append(el("option", { value: key, text: label, selected: key === p.category }));
+    s.append(el("option", { value: key, text: label.replace(/\//g, " › "), selected: key === p.category }));
   }
   s.append(el("option", { value: "keep", text: "Leave it where it is" }));
-  s.dataset.orig = p.category;
-  s.onchange = () => {
-    const box = document.querySelector(`input[type=checkbox][data-rel="${CSS.escape(p.rel_path)}"]`);
-    if (box) { box.checked = s.value !== "keep"; updateCount(); }
-  };
+  s.onchange = () => { const box = document.querySelector(`input.move-box[data-rel="${CSS.escape(p.rel_path)}"]`);
+    if (box) { box.checked = s.value !== "keep"; updateCount(); } };
   return s;
 }
-
 function renderPlan() {
-  const moves = plan.proposals.filter((p) => p.action === "move");
-  const recycles = plan.proposals.filter((p) => p.action === "recycle");
-  const keeps = plan.proposals.filter((p) => p.action === "keep");
+  const moves = S.plan.proposals.filter((p) => p.action === "move");
+  const recycles = S.plan.proposals.filter((p) => p.action === "recycle");
+  const keeps = S.plan.proposals.filter((p) => p.action === "keep");
   const groups = {};
-  for (const p of moves) {
-    const dir = p.dest_rel.split(/[\\/]/).slice(0, -1).join(" › ");
-    (groups[dir] ||= []).push(p);
-  }
-  const s = plan.scan_stats || {};
+  for (const p of moves) (groups[p.dest_rel.split(/[\\/]/).slice(0, -1).join(" › ")] ||= []).push(p);
+  const s = S.plan.scan_stats || {};
   $("summary").replaceChildren(
-    el("span", { class: "chip", text: `${moves.length} to organize` }),
-    recycles.length ? el("span", { class: "chip", text: `${recycles.length} old installer(s) could go` }) : null,
-    el("span", { class: "chip", text: `${keeps.length} left untouched` }),
-    el("span", { class: "chip", text: `${s.folders_untouched || 0} subfolders ignored` }),
-    el("span", { class: "chip", text: `Engine: ${s.model_status || "rules"}` }),
-    s.ocr_files ? el("span", { class: "chip", text: `OCR read ${s.ocr_files} file(s)` }) : null,
+    el("span", { class: "chip accent", text: plural(moves.length, "file") + " to organize" }),
+    el("span", { class: "chip", text: Object.keys(groups).length + " folders" }),
+    keeps.length ? el("span", { class: "chip", text: keeps.length + " left alone" }) : null,
+    recycles.length ? el("span", { class: "chip", text: recycles.length + " old installers" }) : null,
+    el("span", { class: "chip", text: (s.model_status || "").startsWith("gemma") ? "Local AI on" : "Built-in rules" }),
   );
-  const wrap = $("groups");
-  wrap.replaceChildren();
+  const wrap = $("groups"); wrap.replaceChildren();
+  let delay = 0;
   for (const dir of Object.keys(groups).sort()) {
     const items = groups[dir];
-    const all = el("input", { type: "checkbox", checked: items.every((p) => p.approved), ariaLabel: "Select all in " + dir });
-    const g = el("div", { class: "group" }, el("div", { class: "group-head" }, all, el("span", { text: dir }),
-      el("span", { class: "count", text: `· ${items.length}` })));
+    const all = el("input", { type: "checkbox", class: "check", checked: items.every((p) => p.approved), title: "Select all in " + dir });
+    const head = el("div", { class: "group-head" }, svgIcon(ICON.chev, "chev"), all, el("b", { text: dir }), el("span", { class: "count", text: "· " + items.length }));
+    const body = el("div", { class: "group-body" });
+    const g = el("div", { class: "group" }, head, body); g.style.animationDelay = Math.min(delay, 400) + "ms"; delay += 35;
+    head.onclick = (ev) => { if (ev.target !== all) g.classList.toggle("collapsed"); };
     const boxes = [];
     for (const p of items) {
-      const box = el("input", { type: "checkbox", checked: p.approved, ariaLabel: "Move " + p.rel_path });
-      box.dataset.rel = p.rel_path;
-      box.className = "move-box";
-      box.onchange = updateCount;
-      boxes.push(box);
-      const names = el("div", { class: "names" }, el("span", { text: p.rel_path }));
+      const box = el("input", { type: "checkbox", class: "check move-box", checked: p.approved, title: "Move " + p.rel_path });
+      box.dataset.rel = p.rel_path; box.onchange = updateCount; boxes.push(box);
+      const nameCol = el("div", { class: "grow" }, el("div", { class: "name", text: p.rel_path, title: p.rel_path }));
+      if (p.new_name) nameCol.append(el("div", { class: "newname", text: "→ " + p.new_name, title: "New name" }));
+      const tags = el("span");
+      if (p.engine === "rules+model") tags.append(el("span", { class: "tag ai", text: "AI" }));
+      if (p.engine === "rules+learned") tags.append(el("span", { class: "tag", text: "learned" }));
+      if (p.near_duplicate) tags.append(el("span", { class: "tag warn", text: "similar copy" }));
+      else if (p.duplicate_of) tags.append(el("span", { class: "tag", text: "duplicate" }));
+      if (p.extract_to) tags.append(el("span", { class: "tag", text: "unzip" }));
+      if (p.accept_prob != null && p.accept_prob >= 0.8) tags.append(el("span", { class: "tag ai", text: `you usually accept (${Math.round(p.accept_prob * 100)}%)` }));
+      if (p.accept_prob != null && p.accept_prob < 0.5) tags.append(el("span", { class: "tag warn", text: `you often change this (${Math.round(p.accept_prob * 100)}%)` }));
+      nameCol.firstChild.append(tags);
+      const why = el("button", { class: "btn subtle why", title: "Why, and change" }, svgIcon(ICON.info));
+      const details = el("div", { class: "details" }, el("div", { text: p.reasons.join(" · ") }));
+      const edit = el("div", { class: "edit" });
       if (p.new_name) {
         const stem = p.new_name.replace(/\.[^.]*$/, "");
-        const input = el("input", { type: "text", value: stem, ariaLabel: "New name for " + p.rel_path });
-        input.dataset.rel = p.rel_path;
-        input.dataset.orig = stem;
-        input.className = "rename";
-        names.append(el("span", { class: "arrow", text: "→ renamed to" }), input);
+        const inp = el("input", { class: "input wide rename", value: stem, title: "New name" }); inp.dataset.rel = p.rel_path; inp.dataset.orig = stem;
+        edit.append(el("span", { class: "small", text: "Name" }), inp);
       }
-      if (p.engine === "rules+model") names.firstChild.after(el("span", { class: "badge", text: "Gemma" }));
-      if (p.engine === "rules+learned") names.firstChild.after(el("span", { class: "badge", text: "learned" }));
-      if (p.accept_prob != null && (p.accept_prob >= 0.8 || p.accept_prob < 0.5)) {
-        const pct = Math.round(p.accept_prob * 100) + "%";
-        names.firstChild.after(el("span", { class: "badge", title: "Prediction from your past reviews (TabPFN)",
-          text: p.accept_prob >= 0.8 ? "likely OK " + pct : "check " + pct }));
-      }
-      if (p.near_duplicate) names.firstChild.after(el("span", { class: "badge", text: "similar copy" }));
-      else if (p.duplicate_of) names.firstChild.after(el("span", { class: "badge", text: "duplicate" }));
-      if (p.extract_to) names.firstChild.after(el("span", { class: "badge", text: "will unpack" }));
-      g.append(el("div", { class: "item" }, box, names, el("div", { class: "side" }, confPill(p.confidence), folderSelect(p)),
-        el("div", { class: "why", text: p.reasons.join(" · ") })));
+      edit.append(el("span", { class: "small", text: "Folder" }), folderSelect(p));
+      details.append(edit);
+      const row = el("div", { class: "item" }, box, nameCol, confidence(p.confidence), why, details);
+      why.onclick = () => row.classList.toggle("open");
+      body.append(row);
     }
     all.onchange = () => { boxes.forEach((b) => (b.checked = all.checked)); updateCount(); };
     wrap.append(g);
   }
-  if (recycles.length) {
-    const g = el("div", { class: "group recycle" }, el("div", { class: "group-head" },
-      el("span", { text: "Old installers: send to the Recycle Bin?" }), el("span", { class: "count", text: `· ${recycles.length}` })));
-    g.append(el("p", { class: "hint flush", text: "Unticked by default. If you tick any, SlothFile asks separately before recycling. You can restore them from the Recycle Bin." }));
-    for (const p of recycles) {
-      const box = el("input", { type: "checkbox", checked: false, ariaLabel: "Recycle " + p.rel_path });
-      box.dataset.rel = p.rel_path;
-      box.className = "recycle-box";
-      box.onchange = updateCount;
-      g.append(el("div", { class: "item" }, box, el("div", { class: "names", text: p.rel_path }),
-        el("div", { class: "why", text: p.reasons.join(" · ") })));
-    }
-    wrap.append(g);
-  }
-  if (keeps.length) {
-    const g = el("div", { class: "group kept" }, el("div", { class: "group-head" },
-      el("span", { text: "Left untouched" }), el("span", { class: "count", text: `· ${keeps.length}` })));
-    for (const p of keeps) {
-      g.append(el("div", { class: "item" }, el("div", { class: "names", text: p.rel_path }),
-        el("div", { class: "why", text: p.reasons.join(" · ") })));
-    }
-    wrap.append(g);
-  }
-  $("step-plan").classList.remove("hidden");
-  $("actions").classList.remove("hidden");
-  updateCount();
-  $("step-plan").scrollIntoView({ behavior: "smooth" });
+  if (recycles.length) wrap.append(extraGroup("Old installers · move to Recycle Bin?", recycles, true));
+  if (keeps.length) wrap.append(extraGroup("Left alone", keeps, false));
+  $("review-folder").textContent = S.plan.root;
+  setStep(2); updateCount(); $("main").scrollTop = 0;
 }
-
+function extraGroup(title, list, selectable) {
+  const head = el("div", { class: "group-head" }, svgIcon(ICON.chev, "chev"), el("b", { text: title }), el("span", { class: "count", text: "· " + list.length }));
+  const body = el("div", { class: "group-body" });
+  const g = el("div", { class: "group collapsed" }, head, body);
+  head.onclick = () => g.classList.toggle("collapsed");
+  if (selectable) body.append(el("div", { class: "item kept" }, el("div", { class: "small muted", text: "Unticked by default. If you tick any, SlothFile asks once more before sending them to the Recycle Bin." })));
+  for (const p of list) {
+    const row = el("div", { class: "item" + (selectable ? "" : " kept") });
+    if (selectable) { const b = el("input", { type: "checkbox", class: "check recycle-box", title: "Recycle " + p.rel_path }); b.dataset.rel = p.rel_path; b.onchange = updateCount; row.append(b); }
+    row.append(el("div", { class: "name grow", text: p.rel_path }));
+    if (selectable) row.append(el("span"), el("span"));
+    const d = el("div", { class: "details", text: p.reasons.join(" · ") });
+    if (selectable) { row.classList.add("open"); }
+    row.append(d); body.append(row);
+  }
+  return g;
+}
 const selected = () => [...document.querySelectorAll("#groups .move-box")].filter((b) => b.checked).map((b) => b.dataset.rel);
 const selectedRecycle = () => [...document.querySelectorAll("#groups .recycle-box")].filter((b) => b.checked).map((b) => b.dataset.rel);
-
 function updateCount() {
   const n = selected().length, r = selectedRecycle().length;
-  $("selected-count").textContent = `${n} file${n === 1 ? "" : "s"} to move` + (r ? `, ${r} to the Recycle Bin` : "");
-  $("approve").textContent = r ? `Move ${n} & recycle ${r}` : `Move ${n} file${n === 1 ? "" : "s"}`;
+  $("selected-count").textContent = plural(n, "file") + " selected" + (r ? ` · ${r} to the Recycle Bin` : "");
+  $("approve").textContent = r ? `Move ${n} and recycle ${r}` : `Move ${plural(n, "file")}`;
   $("approve").disabled = n + r === 0;
 }
-
-$("cancel").onclick = () => {
-  plan = null;
-  $("step-plan").classList.add("hidden");
-  $("actions").classList.add("hidden");
-  notice("ok", "Plan discarded. Nothing was changed.");
-};
-
+$("sel-all").onclick = () => { const boxes = [...document.querySelectorAll("#groups .move-box")]; const on = boxes.some((b) => !b.checked);
+  boxes.forEach((b) => (b.checked = on)); $("sel-all").textContent = on ? "Select none" : "Select all"; updateCount(); };
+$("cancel").onclick = () => { S.plan = null; setStep(1); toast("Plan discarded. Nothing was changed."); };
 $("approve").onclick = async () => {
   const n = selected().length, recycle = selectedRecycle();
-  const ok = await confirmDialog({ title: `Move ${n} file${n === 1 ? "" : "s"}?`,
-    body: `Files will be moved into folders inside ${plan.root}. Nothing is deleted or overwritten, every step is journaled, and you can undo the whole run from History.`,
-    yes: "Yes, move them" });
-  if (!ok) return;
+  if (!(await confirmDialog({ title: `Move ${plural(n, "file")}?`, yes: "Move",
+    body: `Files are moved into folders inside ${S.plan.root}. Nothing is deleted or overwritten, and you can undo the whole run from History.` }))) return;
   let allowRecycle = false;
-  if (recycle.length) {
-    allowRecycle = await confirmDialog({ title: `Also send ${recycle.length} installer(s) to the Recycle Bin?`,
-      body: `${recycle.join(", ")}. They can be restored from the Recycle Bin until you empty it.`, yes: "Yes, recycle them" });
-  }
+  if (recycle.length) allowRecycle = await confirmDialog({ title: `Also send ${plural(recycle.length, "installer")} to the Recycle Bin?`,
+    yes: "Recycle", body: recycle.join(", ") + ". You can restore them from the Recycle Bin until you empty it." });
   const renames = {}, overrides = {};
-  document.querySelectorAll("#groups input.rename").forEach((i) => {
-    if (i.value.trim() && i.value.trim() !== i.dataset.orig) renames[i.dataset.rel] = i.value.trim();
-  });
-  document.querySelectorAll("#groups select.override").forEach((s) => {
-    if (s.value !== s.dataset.orig) overrides[s.dataset.rel] = s.value;
-  });
+  document.querySelectorAll("#groups input.rename").forEach((i) => { if (i.value.trim() && i.value.trim() !== i.dataset.orig) renames[i.dataset.rel] = i.value.trim(); });
+  document.querySelectorAll("#groups select.override").forEach((s) => { if (s.value !== s.dataset.orig) overrides[s.dataset.rel] = s.value; });
   $("approve").disabled = true;
   try {
-    const r = await api("/api/apply", { plan_id: plan.plan_id, approved: selected().concat(allowRecycle ? recycle : []),
-      renames, overrides, allow_recycle: allowRecycle });
-    showResult(r);
-    plan = null;
-    $("step-plan").classList.add("hidden");
-    $("actions").classList.add("hidden");
-    $("pending-banner").classList.add("hidden");
-    loadHistory();
+    const r = await api("/api/apply", { plan_id: S.plan.plan_id, approved: selected().concat(allowRecycle ? recycle : []), renames, overrides, allow_recycle: allowRecycle });
+    showDone(r); S.plan = null; $("pending-banner").classList.add("hidden"); $("pending-count").classList.add("hidden");
   } catch (e) { handleError(e); $("approve").disabled = false; }
 };
-
-function showResult(r) {
-  const s = r.summary;
-  const box = $("result");
-  box.replaceChildren(el("p", { text: `Moved ${s.moved} file(s)` + (s.recycled ? `, sent ${s.recycled} to the Recycle Bin` : "") +
-    `. Skipped ${s.skipped}, failed ${s.failed}.` }));
-  const notes = r.results.filter((x) => (x.status !== "moved" && x.status !== "recycled") || x.detail);
-  if (notes.length) {
-    const t = el("table", {}, el("tr", {}, el("th", { text: "File" }), el("th", { text: "Status" }), el("th", { text: "Details" })));
-    for (const p of notes) t.append(el("tr", {}, el("td", { class: "path", text: p.src }), el("td", { text: p.status }), el("td", { text: p.detail })));
+function showDone(r) {
+  S.run = r.run_id; const s = r.summary;
+  const folders = new Set(r.results.filter((x) => x.status === "moved" && x.dst).map((x) => x.dst.split(/[\\/]/)[0]));
+  $("done-title").textContent = s.moved ? `Moved ${plural(s.moved, "file")}` : "Nothing was moved";
+  $("done-text").textContent = (s.moved ? `Into ${plural(folders.size, "folder")}. ` : "") + (s.recycled ? `${s.recycled} sent to the Recycle Bin. ` : "") +
+    (s.skipped || s.failed ? `${s.skipped + s.failed} could not be moved (details below).` : "Everything went as planned.");
+  const issues = r.results.filter((x) => (x.status !== "moved" && x.status !== "recycled") || x.detail);
+  const box = $("done-issues"); box.replaceChildren();
+  if (issues.length) {
+    const t = el("table", {}, el("tr", {}, el("th", { text: "File" }), el("th", { text: "Result" }), el("th", { text: "Details" })));
+    for (const x of issues) t.append(el("tr", {}, el("td", { class: "path", text: x.src }), el("td", { text: x.status }), el("td", { class: "small muted", text: x.detail })));
     box.append(t);
   }
-  const undo = el("button", { text: "Undo this run" });
-  undo.onclick = () => doUndo(r.run_id);
-  box.append(el("div", { class: "row mt12" }, undo));
-  $("step-result").classList.remove("hidden");
-  $("step-result").scrollIntoView({ behavior: "smooth" });
+  setStep(3);
+  const tick = document.querySelector(".done svg.tick path"); tick.style.animation = "none"; void tick.getBoundingClientRect(); tick.style.animation = "";
 }
-
-async function doUndo(runId) {
+$("done-undo").onclick = () => doUndo(S.run, true);
+$("done-again").onclick = () => setStep(1);
+$("review-change").onclick = () => { S.plan = null; setStep(1); };
+async function doUndo(runId, fromDone) {
   try {
     const r = await api("/api/undo", { run_id: runId });
-    const s = r.summary;
     const skipped = r.results.filter((x) => x.status !== "restored");
-    notice(skipped.length ? "warn" : "ok",
-      `Restored ${s.restored} file(s) to where they were.` +
-      (skipped.length ? ` ${skipped.length} could not be restored safely: ` + skipped.map((x) => `${x.src} (${x.detail})`).join("; ") +
-        ". Undo again later to retry." : ""));
-    $("step-result").classList.add("hidden");
+    toast(`Restored ${plural(r.summary.restored, "file")}.` + (skipped.length ? ` ${skipped.length} could not be restored safely; try again later.` : ""), skipped.length ? "warn" : "ok");
+    if (fromDone) setStep(1);
     loadHistory();
   } catch (e) { handleError(e); }
 }
 
-async function loadHistory() {
-  try { renderHistory((await api("/api/state")).runs); } catch (e) { handleError(e); }
-}
-function renderHistory(runs) {
-  const h = $("history");
-  if (!runs.length) { h.replaceChildren(el("p", { class: "hint", text: "No runs yet." })); return; }
-  const t = el("table", {}, el("tr", {}, el("th", { text: "When" }), el("th", { text: "Folder" }),
-    el("th", { text: "Organized" }), el("th", { text: "" })));
-  for (const r of runs) {
-    const active = r.moved > 0 || r.recycled > 0;
-    const btn = el("button", { text: active ? "Undo" : "Undone", disabled: !active || !r.complete });
-    btn.onclick = () => doUndo(r.run_id);
-    t.append(el("tr", {}, el("td", { text: (r.started || "").replace("T", " ").slice(0, 16) }),
-      el("td", { class: "path", text: r.root }),
-      el("td", { text: r.complete ? `${r.moved} still in place` + (r.recycled ? `, ${r.recycled} recycled` : "") + `, ${r.undone} undone`
-        : "interrupted - recover first" }),
-      el("td", {}, btn)));
-  }
-  h.replaceChildren(t);
-}
-
-// ---------------------------------------------------------------- storage cleanup
+/* ---------- clean up ---------- */
 $("clean-scan").onclick = async () => {
-  $("clean-scan").disabled = true;
-  $("clean-bar").classList.remove("hidden");
-  $("clean-bar").firstElementChild.style.width = "30%";
-  notice("", "");
-  try {
-    const { job } = await api("/api/cleanup/scan", {});
-    const j = await waitJob(job);
-    cleanReport = j.result;
-    renderCleanup();
-  } catch (e) { handleError(e); }
+  $("clean-scan").disabled = true; $("clean-bar").classList.remove("hidden");
+  try { const { job } = await api("/api/cleanup/scan", {}); S.clean = (await waitJob(job)).result; renderCleanup(); }
+  catch (e) { handleError(e); }
   finally { $("clean-scan").disabled = false; $("clean-bar").classList.add("hidden"); }
 };
-
+document.querySelectorAll("#clean-mode button").forEach((b) => b.onclick = () => {
+  S.cleanMode = b.dataset.mode;
+  document.querySelectorAll("#clean-mode button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  $("clean-mode-hint").textContent = S.cleanMode === "recycle" ? "Recoverable from the Recycle Bin. Space is freed when you empty it."
+    : "Frees space immediately. Deleted files cannot be restored.";
+  $("clean-go").className = "btn " + (S.cleanMode === "delete" ? "danger" : "primary");
+});
 function renderCleanup() {
-  const r = cleanReport;
-  $("clean-results").classList.remove("hidden");
-  const wrap = $("clean-cats");
-  wrap.replaceChildren();
+  const r = S.clean; $("clean-results").classList.remove("hidden");
+  const max = Math.max(1, ...r.categories.map((c) => c.total_bytes));
+  const wrap = $("clean-cats"); wrap.replaceChildren();
   for (const c of r.categories) {
     if (!c.count && !c.blocked_reason) continue;
-    const box = el("input", { type: "checkbox", checked: c.selected_by_default && !c.blocked_reason && c.count > 0,
-      disabled: !!c.blocked_reason || !c.count, ariaLabel: "Clean " + c.label });
-    box.dataset.key = c.key;
-    box.onchange = updateCleanTotal;
-    const det = el("details", {}, el("summary", { text: `Largest files (${c.count} in total${c.truncated ? ", list truncated" : ""})` }));
-    const t = el("table");
-    for (const f of c.largest) t.append(el("tr", {}, el("td", { class: "path", text: f.path }), el("td", { class: "num", text: bytes(f.size) })));
-    det.append(t);
-    wrap.append(el("div", { class: "cat" }, box,
-      el("div", {}, el("b", { text: c.label }), el("span", { class: "badge", text: c.selected_by_default ? "suggested" : "optional" })),
-      el("span", { class: "chip", text: `${bytes(c.total_bytes)} · ${c.count} files` }),
-      el("div", { class: "why", text: c.blocked_reason ? "Blocked: " + c.blocked_reason : c.why }), det));
+    const box = el("input", { type: "checkbox", class: "check", checked: c.selected_by_default && !c.blocked_reason && c.count > 0, disabled: !!c.blocked_reason || !c.count, title: c.label });
+    box.dataset.key = c.key; box.onchange = updateCleanTotal;
+    const bar = el("div", { class: "bar" }, el("div")); bar.firstChild.style.width = Math.max(2, 100 * c.total_bytes / max) + "%";
+    const why = el("button", { class: "btn subtle why", title: "Why is this safe?" }, svgIcon(ICON.info));
+    const label = el("div", {}, el("div", { text: c.label }), el("div", { class: "tiny", text: c.blocked_reason ? "Blocked: " + c.blocked_reason : plural(c.count, "file") + (c.selected_by_default ? " · suggested" : " · optional") }));
+    const row = el("div", { class: "cat" + (c.blocked_reason ? " blocked" : "") }, box, label, bar, el("div", { class: "size", text: bytes(c.total_bytes) }), why,
+      el("div", { class: "details", text: c.why }));
+    why.onclick = () => row.classList.toggle("open");
+    wrap.append(row);
   }
-  if (!wrap.children.length) wrap.append(el("p", { class: "hint", text: "Nothing to clean right now." }));
-  const p = r.protected;
-  const pd = $("clean-protected");
-  pd.querySelector("summary").textContent = `Kept for safety: ${p.count} file(s), ${bytes(p.bytes)} (personal-looking, unknown or unusual files)`;
-  const pt = el("table");
-  for (const [reason, n] of Object.entries(p.by_reason || {})) pt.append(el("tr", {}, el("td", { text: reason }), el("td", { class: "num", text: String(n) })));
-  pd.querySelector("div").replaceChildren(pt);
-  $("bin-info").textContent = `The Recycle Bin holds ${bytes(r.recycle_bin.bytes)} in ${r.recycle_bin.items} item(s). Free space on the system drive: ${bytes(r.disk_free)}.`;
+  if (!wrap.children.length) wrap.append(el("div", { class: "empty", text: "Nothing to clean right now." }));
+  $("clean-protected").textContent = `${plural(r.protected.count, "file")} (${bytes(r.protected.bytes)}) kept for safety: personal-looking, unknown or in use.`;
+  $("bin-info").textContent = `Recycle Bin: ${bytes(r.recycle_bin.bytes)} in ${plural(r.recycle_bin.items, "item")}`;
   $("bin-empty").disabled = !r.recycle_bin.items;
-  $("clean-outcome").replaceChildren();
-  updateCleanTotal();
+  $("clean-outcome").replaceChildren(); updateCleanTotal();
 }
-
 const cleanSelected = () => [...document.querySelectorAll("#clean-cats input[type=checkbox]")].filter((b) => b.checked && !b.disabled).map((b) => b.dataset.key);
 function updateCleanTotal() {
   const keys = new Set(cleanSelected());
-  const total = cleanReport.categories.filter((c) => keys.has(c.key)).reduce((a, c) => a + c.total_bytes, 0);
-  $("clean-total").textContent = `${bytes(total)} selected`;
-  $("clean-sub").textContent = `of ${bytes(cleanReport.reclaimable_bytes)} found in ${cleanReport.categories.length} locations`;
+  const total = S.clean.categories.filter((c) => keys.has(c.key)).reduce((a, c) => a + c.total_bytes, 0);
+  $("clean-total").textContent = bytes(total) + " selected";
+  $("clean-sub").textContent = `of ${bytes(S.clean.reclaimable_bytes)} found · free space ${bytes(S.clean.disk_free)}`;
   $("clean-go").disabled = keys.size === 0;
 }
-
 $("clean-go").onclick = async () => {
-  const keys = cleanSelected();
-  const mode = document.querySelector("input[name=clean-mode]:checked").value;
-  const sel = new Set(keys);
-  const total = cleanReport.categories.filter((c) => sel.has(c.key)).reduce((a, c) => a + c.total_bytes, 0);
-  const ok = mode === "delete"
-    ? await confirmDialog({ title: `Permanently delete ${bytes(total)}?`, danger: true, word: "DELETE", yes: "Delete permanently",
-        body: "These temporary files will be deleted and cannot be restored. Files that changed since the scan or are in use are skipped." })
-    : await confirmDialog({ title: `Move ${bytes(total)} to the Recycle Bin?`, yes: "Move to Recycle Bin",
-        body: "You can restore anything from the Recycle Bin. The space is freed when you empty it." });
+  const keys = cleanSelected(); const sel = new Set(keys);
+  const total = S.clean.categories.filter((c) => sel.has(c.key)).reduce((a, c) => a + c.total_bytes, 0);
+  const del = S.cleanMode === "delete";
+  const ok = del ? await confirmDialog({ title: `Permanently delete ${bytes(total)}?`, danger: true, word: "DELETE", yes: "Delete",
+      body: "These temporary files will be deleted and cannot be restored. Files that changed since the scan or are in use are skipped." })
+    : await confirmDialog({ title: `Move ${bytes(total)} to the Recycle Bin?`, yes: "Move to Recycle Bin", body: "You can restore anything from the Recycle Bin." });
   if (!ok) return;
   $("clean-go").disabled = true;
   try {
-    const r = await api("/api/cleanup/clean", { report_id: cleanReport.report_id, categories: keys, mode,
-      confirm_permanent: mode === "delete" });
-    const where = mode === "delete" ? "deleted" : "moved to the Recycle Bin";
+    const r = await api("/api/cleanup/clean", { report_id: S.clean.report_id, categories: keys, mode: S.cleanMode, confirm_permanent: del });
     const out = $("clean-outcome");
-    out.replaceChildren(el("p", { class: "notice ok", text: `${r.removed_count} file(s), ${bytes(r.removed_bytes)} ${where}. ` +
-      `Free space: ${bytes(r.disk_free_before)} → ${bytes(r.disk_free_after)}. Skipped ${r.skipped.length}, errors ${r.errors.length}.` }));
-    const issues = r.skipped.concat(r.errors);
-    if (issues.length) {
-      const det = el("details", {}, el("summary", { text: `Why ${issues.length} file(s) were not removed` }));
-      const t = el("table");
-      for (const x of issues.slice(0, 200)) t.append(el("tr", {}, el("td", { text: x.reason }), el("td", { class: "path", text: x.path })));
-      det.append(t);
-      out.append(det);
-    }
-    $("bin-info").textContent = `The Recycle Bin now holds ${bytes(r.recycle_bin_after.bytes)} in ${r.recycle_bin_after.items} item(s).`;
+    out.replaceChildren(el("div", { class: "banner info" }, el("span", { text: `${plural(r.removed_count, "file")} (${bytes(r.removed_bytes)}) ${del ? "deleted" : "moved to the Recycle Bin"}. Free space: ${bytes(r.disk_free_before)} → ${bytes(r.disk_free_after)}.` + (r.skipped.length + r.errors.length ? ` ${r.skipped.length + r.errors.length} skipped.` : "") })));
+    toast("Clean up finished.");
+    $("bin-info").textContent = `Recycle Bin: ${bytes(r.recycle_bin_after.bytes)} in ${plural(r.recycle_bin_after.items, "item")}`;
     $("bin-empty").disabled = !r.recycle_bin_after.items;
   } catch (e) { handleError(e); }
 };
-
 $("bin-empty").onclick = async () => {
-  const ok = await confirmDialog({ title: "Empty the Recycle Bin?", danger: true, word: "EMPTY", yes: "Empty it",
-    body: "Everything in the Recycle Bin (from all apps, not just SlothFile) will be deleted permanently. This cannot be undone." });
-  if (!ok) return;
-  try {
-    const r = await api("/api/cleanup/empty-bin", { confirm: true });
-    notice("ok", `Recycle Bin emptied: freed ${bytes(r.bytes_before - r.bytes_after)}.`);
-    $("bin-info").textContent = `The Recycle Bin holds ${bytes(r.bytes_after)} in ${r.items_after} item(s).`;
-    $("bin-empty").disabled = !r.items_after;
-  } catch (e) { handleError(e); }
-};
-
-// ---------------------------------------------------------------- automation & settings
-const SETTING_LABELS = {
-  use_model: "Use the local Gemma model for documents",
-  use_predictor: "Predict which moves you would accept, from your past reviews (TabPFN, if installed)",
-  ocr: "Read scanned PDFs and photos of documents (Windows OCR)",
-  photos_by_date: "Sort camera photos into Images/Year/Month",
-  near_duplicates: "Find similar (not identical) copies",
-  unpack_zip_archives: "Unpack safe .zip files into Archives/<name>",
-  recycle_old_installers_days: "Suggest recycling installers older than (days, 0 = never)",
-  auto_min_confidence: "Automatic run: minimum confidence (0.5–1.0)",
-  notify_min_files: "Notify when at least this many files were handled",
-};
-
-async function loadAutomation() {
-  try {
-    const [st, a, l] = await Promise.all([api("/api/settings"), api("/api/automation"), api("/api/learned")]);
-    settings = st.settings; categories = st.categories;
-    renderSettings(); renderAutomation(a); renderLearned(l.rules);
-  } catch (e) { handleError(e); }
-}
-
-function renderSettings() {
-  const f = $("settings-form");
-  f.replaceChildren();
-  for (const [k, label] of Object.entries(SETTING_LABELS)) {
-    const v = settings[k];
-    let input;
-    if (typeof v === "boolean") {
-      input = el("input", { type: "checkbox", checked: v });
-      input.dataset.key = k;
-      f.append(el("label", { class: "toggle" }, input, el("span", { text: label })));
-    } else {
-      input = el("input", { type: "number", value: v ?? 0, step: k === "auto_min_confidence" ? "0.05" : "1", min: "0" });
-      input.dataset.key = k;
-      f.append(el("label", { class: "numfield" }, el("span", { text: label }), input));
-    }
-  }
-  const c = $("settings-cats");
-  c.replaceChildren();
-  for (const [key, label] of Object.entries(categories)) {
-    const box = el("input", { type: "checkbox", checked: settings.auto_approve_categories.includes(key) });
-    box.dataset.cat = key;
-    const doc = ["finance", "travel", "career", "manuals", "documents"].includes(key);
-    c.append(el("label", { class: "toggle" }, box, el("span", { text: label + (doc ? " (documents: not recommended)" : "") })));
-  }
-}
-
-$("settings-save").onclick = async () => {
-  const changes = {};
-  document.querySelectorAll("#settings-form input").forEach((i) => {
-    const k = i.dataset.key;
-    if (i.type === "checkbox") changes[k] = i.checked;
-    else {
-      const n = Number(i.value);
-      changes[k] = k === "auto_min_confidence" ? n : Math.max(0, Math.round(n));  // 0 turns installer suggestions off
-    }
-  });
-  changes.auto_approve_categories = [...document.querySelectorAll("#settings-cats input")].filter((b) => b.checked).map((b) => b.dataset.cat);
-  try { settings = (await api("/api/settings", { changes })).settings; notice("ok", "Settings saved."); }
+  if (!(await confirmDialog({ title: "Empty the Recycle Bin?", danger: true, word: "EMPTY", yes: "Empty",
+    body: "Everything in the Recycle Bin, from every app, is deleted permanently. This cannot be undone." }))) return;
+  try { const r = await api("/api/cleanup/empty-bin", { confirm: true });
+    toast(`Recycle Bin emptied. Freed ${bytes(r.bytes_before - r.bytes_after)}.`);
+    $("bin-info").textContent = `Recycle Bin: ${bytes(r.bytes_after)} in ${plural(r.items_after, "item")}`; $("bin-empty").disabled = !r.items_after; }
   catch (e) { handleError(e); }
 };
 
-function renderAutomation(a) {
-  $("ctx-menu").checked = a.context_menu;
-  $("run-alias").checked = a.run_alias;
-  const list = $("sched-list");
-  if (!a.tasks.length) { list.replaceChildren(el("p", { class: "hint flush", text: "No scheduled runs." })); }
-  else {
-    const t = el("table", {}, el("tr", {}, el("th", { text: "Task" }), el("th", { text: "Next run" }), el("th", { text: "" })));
-    for (const task of a.tasks) {
-      const rm = el("button", { text: "Remove" });
-      rm.onclick = () => automation({ action: "remove_task", name: task.name });
-      t.append(el("tr", {}, el("td", { class: "path", text: task.name + (task.command ? " — " + task.command : "") }),
-        el("td", { text: task.next_run || task.status || "" }), el("td", {}, rm)));
-    }
-    list.replaceChildren(t);
-  }
-  showPending(a.pending);
-}
-async function automation(body) {
-  try { renderAutomation(await api("/api/automation", body)); notice("ok", "Done."); }
-  catch (e) { handleError(e); loadAutomation(); }
-}
-$("ctx-menu").onchange = () => automation({ action: "context_menu", on: $("ctx-menu").checked });
-$("run-alias").onchange = () => automation({ action: "run_alias", on: $("run-alias").checked });
-$("sched-add").onclick = () => automation({ action: "schedule_daily", folder: $("folder").value, at: $("sched-at").value });
-$("sched-summary").onclick = () => automation({ action: "schedule_summary", day: "SUN", at: "18:00" });
-$("auto-now").onclick = async () => {
-  const ok = await confirmDialog({ title: "Tidy automatically now?",
-    body: `SlothFile will move only trusted kinds of file in ${$("folder").value || "(choose a folder on the Organize tab)"}; everything else waits for your review. You can undo it from History.`,
-    yes: "Tidy now" });
-  if (!ok) return;
-  $("auto-now").disabled = true;
-  $("auto-outcome").textContent = "Working…";
+/* ---------- automation ---------- */
+async function loadAutomation() {
+  const folder = $("folder").value || S.settings.default_folder || "";
+  $("auto-folder-text").textContent = folder ? `Folder: ${folder}` : "Choose a folder on the Organize page first.";
   try {
-    const { job } = await api("/api/auto", { folder: $("folder").value });
-    const r = (await waitJob(job)).result;
-    $("auto-outcome").textContent = r.error ? r.error : `Moved ${r.moved} file(s); ${r.waiting} waiting for your review on the Organize tab.`;
-    loadHistory();
-    showPending((await api("/api/automation")).pending);
-  } catch (e) { handleError(e); $("auto-outcome").textContent = ""; }
+    const a = await api("/api/automation");
+    const tidy = a.tasks.find((t) => /tidy/i.test(t.name)); const weekly = a.tasks.find((t) => /weekly/i.test(t.name));
+    $("sched-daily").checked = !!tidy; $("sched-weekly").checked = !!weekly;
+    $("sched-text").textContent = tidy ? `On · next run ${tidy.next_run || "scheduled"}` : "Runs in the background with Windows Task Scheduler. No admin rights needed.";
+    showPending(a.pending);
+  } catch (e) { handleError(e); }
+}
+$("auto-now").onclick = async () => {
+  const folder = $("folder").value || S.settings.default_folder;
+  if (!folder) { toast("Choose a folder on the Organize page first.", "warn"); return; }
+  if (!(await confirmDialog({ title: "Tidy automatically now?", yes: "Tidy",
+    body: `SlothFile moves only the kinds of file you trust in ${folder}. Everything else waits for your review. You can undo it from History.` }))) return;
+  $("auto-now").disabled = true; const out = $("auto-outcome"); out.classList.remove("hidden"); out.textContent = "Working…";
+  try { const { job } = await api("/api/auto", { folder }); const r = (await waitJob(job)).result;
+    out.textContent = r.error ? r.error : `Moved ${plural(r.moved, "file")}; ${r.waiting} waiting for your review.`; loadAutomation(); }
+  catch (e) { handleError(e); out.classList.add("hidden"); }
   finally { $("auto-now").disabled = false; }
 };
+async function automation(body, msg) {
+  try { await api("/api/automation", body); toast(msg); } catch (e) { handleError(e); }
+  loadAutomation(); loadShortcuts();
+}
+$("sched-daily").onchange = async (e) => {
+  if (e.target.checked) {
+    const folder = $("folder").value || S.settings.default_folder;
+    if (!folder) { e.target.checked = false; toast("Choose a folder on the Organize page first.", "warn"); return; }
+    automation({ action: "schedule_daily", folder, at: $("sched-at").value }, `SlothFile will tidy ${folder} every day at ${$("sched-at").value}.`);
+  } else {
+    const a = await api("/api/automation"); const t = a.tasks.find((x) => /tidy/i.test(x.name));
+    if (t) automation({ action: "remove_task", name: t.name }, "Daily tidy turned off.");
+  }
+};
+$("sched-weekly").onchange = async (e) => {
+  if (e.target.checked) automation({ action: "schedule_summary", day: "SUN", at: "18:00" }, "Weekly summary turned on.");
+  else { const a = await api("/api/automation"); const t = a.tasks.find((x) => /weekly/i.test(x.name));
+    if (t) automation({ action: "remove_task", name: t.name }, "Weekly summary turned off."); }
+};
+$("go-trusted").onclick = (e) => { e.preventDefault(); showPage("settings"); setTimeout(() => $("trusted-title").scrollIntoView({ behavior: "smooth" }), 60); };
 
-function renderLearned(rules) {
-  const w = $("learned");
-  if (!rules.length) {
-    w.replaceChildren(el("p", { class: "hint flush", text: "Nothing yet. When you change a file's folder in a plan (or leave the same kind of file twice), SlothFile remembers it here." }));
-    return;
-  }
-  const t = el("table", {}, el("tr", {}, el("th", { text: "When a file is…" }), el("th", { text: "SlothFile now…" }), el("th", { text: "" })));
-  for (const r of rules) {
-    const forget = el("button", { text: "Forget" });
-    forget.onclick = async () => { try { await api("/api/learned/forget", { key: r.key }); loadAutomation(); } catch (e) { handleError(e); } };
-    const [kind, value] = r.key.split(/:(.*)/s);
-    const what = kind === "host" ? `downloaded from ${value}` : `a ${value} file`;
-    const does = r.outcome === "keep" ? "leaves it where it is" : `files it in ${categories[r.outcome] || r.outcome}`;
-    t.append(el("tr", {}, el("td", { text: what }), el("td", { text: `${does} (seen ${r.support}×)` }), el("td", {}, forget)));
-  }
-  const reset = el("button", { text: "Forget everything" });
-  reset.onclick = async () => {
-    if (await confirmDialog({ title: "Forget everything SlothFile learned?", body: "Learned rules are removed. Your files are not touched." })) {
-      try { await api("/api/learned/reset", { confirm: true }); loadAutomation(); } catch (e) { handleError(e); }
+/* ---------- history ---------- */
+async function loadHistory() {
+  try {
+    const [st, sm] = await Promise.all([api("/api/state"), api("/api/summary")]);
+    const s = sm.summary;
+    const cleaned = (s.cleanup_bytes.recycle || 0) + (s.cleanup_bytes.delete || 0);
+    $("stats").replaceChildren(
+      el("div", { class: "stat" }, el("b", { text: String(s.files_organized) }), el("span", { text: "files organized this week" })),
+      el("div", { class: "stat" }, el("b", { text: String(s.files_renamed) }), el("span", { text: "files renamed" })),
+      el("div", { class: "stat" }, el("b", { text: bytes(cleaned) }), el("span", { text: "cleaned up" })),
+      el("div", { class: "stat" }, el("b", { text: String(s.undone) }), el("span", { text: "undone" })));
+    const h = $("history");
+    if (!st.runs.length) { h.replaceChildren(el("div", { class: "empty", text: "No runs yet. Organize a folder to get started." })); return; }
+    const t = el("table", {}, el("tr", {}, el("th", { text: "When" }), el("th", { text: "Folder" }), el("th", { text: "Result" }), el("th", { text: "" })));
+    for (const r of st.runs) {
+      const active = r.moved > 0 || r.recycled > 0;
+      const b = el("button", { class: "btn", text: active ? "Undo" : "Undone", disabled: !active || !r.complete }); b.onclick = () => doUndo(r.run_id);
+      t.append(el("tr", {}, el("td", { text: (r.started || "").replace("T", " ").slice(0, 16) }), el("td", { class: "path", text: r.root }),
+        el("td", { class: "small", text: r.complete ? `${r.moved} in place` + (r.recycled ? ` · ${r.recycled} recycled` : "") + (r.undone ? ` · ${r.undone} undone` : "") : "Interrupted, recover first" }),
+        el("td", { class: "num" }, b)));
     }
-  };
-  w.replaceChildren(t, el("div", { class: "row mt12" }, reset));
+    h.replaceChildren(t);
+  } catch (e) { handleError(e); }
 }
 
-// ---------------------------------------------------------------- summary
-async function loadSummary() {
+/* ---------- settings ---------- */
+async function save(changes, quiet) {
+  try { S.settings = (await api("/api/settings", { changes })).settings; if (!quiet) toast("Saved"); }
+  catch (e) { handleError(e); loadSettingsPage(); }
+}
+document.querySelectorAll("[data-setting]").forEach((i) => i.onchange = () => {
+  const k = i.dataset.setting;
+  save({ [k]: i.type === "checkbox" ? i.checked : Math.max(0, Math.round(Number(i.value) || 0)) });
+  if (k === "use_model") refreshModelToggle();
+});
+document.querySelectorAll("#theme button").forEach((b) => b.onclick = () => { applyTheme(b.dataset.v); save({ theme: b.dataset.v }, true); });
+$("conf").oninput = () => { $("conf-text").textContent = `The rules must be at least ${$("conf").value}% sure`; };
+$("conf").onchange = () => save({ auto_min_confidence: Number($("conf").value) / 100 });
+$("def-folder-pick").onclick = async () => {
+  const tmp = el("input"); const f = await pickInto(tmp);
+  if (f) { await save({ default_folder: f }); $("def-folder-text").textContent = f; }
+};
+$("forget-all").onclick = async () => {
+  if (await confirmDialog({ title: "Forget everything SlothFile learned?", yes: "Forget", body: "Learned rules and prediction history are removed. Your files are not touched." })) {
+    try { await api("/api/learned/reset", { confirm: true }); toast("Forgotten."); loadSettingsPage(); } catch (e) { handleError(e); }
+  }
+};
+$("ctx-menu").onchange = () => automation({ action: "context_menu", on: $("ctx-menu").checked }, $("ctx-menu").checked ? "Added to the right-click menu." : "Removed from the right-click menu.");
+$("run-alias").onchange = () => automation({ action: "run_alias", on: $("run-alias").checked }, $("run-alias").checked ? "Type slothfile in Windows+R to open SlothFile." : "Windows+R shortcut removed.");
+async function loadShortcuts() {
+  try { const a = await api("/api/automation"); $("ctx-menu").checked = a.context_menu; $("run-alias").checked = a.run_alias; } catch (e) {}
+}
+async function loadSettingsPage() {
   try {
-    const r = await api("/api/summary");
-    $("summary-text").textContent = r.text.split("\n")[0];
-    const s = r.summary;
-    const t = el("table");
-    const rows = [["Files organized", s.files_organized], ["Files renamed", s.files_renamed], ["Runs undone", s.undone],
-      ["Temporary files cleaned", `${s.cleanup_files} (${bytes((s.cleanup_bytes.recycle || 0) + (s.cleanup_bytes.delete || 0))})`],
-      ["Recycle Bin emptied", bytes(s.recycle_bin_emptied_bytes)], ["Archives unpacked", s.archives_extracted],
-      ["Old installers recycled", s.recycled_installers]];
-    for (const [k, v] of rows) t.append(el("tr", {}, el("td", { text: k }), el("td", { class: "num", text: String(v) })));
-    for (const [folder, n] of (s.by_folder || []).slice(0, 10)) t.append(el("tr", {}, el("td", { text: "→ " + folder }), el("td", { class: "num", text: String(n) })));
-    $("summary-table").replaceChildren(t);
+    const st = await api("/api/settings"); S.settings = st.settings; S.categories = st.categories;
+    const s = S.settings;
+    document.querySelectorAll("[data-setting]").forEach((i) => { const v = s[i.dataset.setting]; if (i.type === "checkbox") i.checked = !!v; else i.value = v ?? 0; });
+    applyTheme(s.theme);
+    $("def-folder-text").textContent = s.default_folder || (S.home.Downloads ? `Downloads (${S.home.Downloads})` : "Pre-filled when SlothFile opens");
+    $("conf").value = Math.round((s.auto_min_confidence || 0.9) * 100); $("conf").oninput();
+    const grid = $("trusted"); grid.replaceChildren();
+    for (const [key, label] of Object.entries(S.categories)) {
+      const b = el("input", { type: "checkbox", class: "check", checked: s.auto_approve_categories.includes(key) });
+      b.onchange = () => save({ auto_approve_categories: [...grid.querySelectorAll("input")].filter((x) => x.checked).map((x) => x.dataset.cat) });
+      b.dataset.cat = key; grid.append(el("label", {}, b, el("span", { text: label.replace(/\//g, " › ") })));
+    }
+    loadShortcuts(); loadLearned(); loadAI(); loadPredictor();
   } catch (e) { handleError(e); }
+}
+async function loadLearned() {
+  try {
+    const l = await api("/api/learned"); const w = $("learned"); w.replaceChildren();
+    if (!l.rules.length) { w.append(el("p", { class: "small muted", text: "Nothing yet." })); return; }
+    const t = el("table");
+    for (const r of l.rules) {
+      const [kind, value] = r.key.split(/:(.*)/s);
+      const f = el("button", { class: "btn subtle", text: "Forget" });
+      f.onclick = async () => { await api("/api/learned/forget", { key: r.key }); loadLearned(); };
+      t.append(el("tr", {}, el("td", { text: kind === "host" ? `Downloaded from ${value}` : `${value} files` }),
+        el("td", { class: "small muted", text: r.outcome === "keep" ? "left where they are" : "go to " + (S.categories[r.outcome] || r.outcome) }), el("td", { class: "num" }, f)));
+    }
+    w.append(t);
+  } catch (e) {}
+}
+async function loadAI() {
+  try {
+    const a = await api("/api/ai/status");
+    $("ai-title").textContent = a.ready ? "Local AI is ready" : a.ollama_installed ? "Almost there: the AI model needs downloading" : "Local AI is not set up";
+    $("ai-text").textContent = a.ready ? `${a.model} runs on this PC. Nothing is uploaded.`
+      : "One-time setup installs Ollama and downloads Gemma 4 (about 4.3 GB). It runs on this PC; nothing is uploaded.";
+    $("ai-setup").textContent = a.ready ? "Ready" : "Set up"; $("ai-setup").disabled = a.ready;
+    $("ai-setup").className = "btn " + (a.ready ? "" : "primary");
+  } catch (e) { $("ai-title").textContent = "Local AI status unavailable"; $("ai-setup").disabled = true; }
+}
+$("ai-setup").onclick = async () => {
+  if (!(await confirmDialog({ title: "Set up local AI?", yes: "Download and set up",
+    body: "SlothFile will install Ollama (from the official Windows package) and download Gemma 4 (about 4.3 GB) once. It runs entirely on this PC." }))) return;
+  $("ai-setup").disabled = true; $("ai-progress").classList.remove("hidden");
+  const bar = $("ai-progress").querySelector(".progress");
+  try {
+    const { job } = await api("/api/ai/setup", { confirm: true });
+    await waitJob(job, (j) => { const p = j.progress || {}; $("ai-stage").textContent = p.stage || "Working…";
+      if (p.percent == null) bar.classList.add("indet"); else { bar.classList.remove("indet"); bar.firstElementChild.style.width = p.percent + "%"; } });
+    toast("Local AI is ready."); refreshModelToggle();
+  } catch (e) { handleError(e); }
+  finally { $("ai-progress").classList.add("hidden"); loadAI(); }
+};
+async function loadPredictor() {
+  try {
+    const p = await api("/api/predictor"); const h = p.history || {};
+    $("pred-title").textContent = !p.available ? "Smart predictions are not included in this edition"
+      : h.ready ? "Smart predictions are active" : "Learning which moves you accept";
+    $("pred-text").textContent = !p.available ? "Install the Full edition of SlothFile to let it learn which moves you accept."
+      : h.ready ? `Learned from ${plural(h.rows, "reviewed move")}. The automatic tidy only moves files you'd very likely approve.`
+      : (h.rows || 0) < (p.min_rows || 30)
+        ? `${h.rows || 0} of ${p.min_rows || 30} reviewed moves so far. Then it starts helping.`
+        : `${plural(h.rows, "reviewed move")} so far. It also needs at least ${p.min_per_class || 5} moves you `
+          + ((h.negatives || 0) < (p.min_per_class || 5) ? "changed or unticked" : "accepted")
+          + ", so it can tell the difference.";
+  } catch (e) { /* older server: keep the description */ }
 }
 
 init();

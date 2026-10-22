@@ -68,6 +68,15 @@ class DesktopApi:
         return os.path.normpath(path) if os.path.isdir(path) else None
 
 
+def _close_native_splash() -> None:
+    """Close the PyInstaller splash image (installed exe only)."""
+    try:
+        import pyi_splash  # only exists inside a PyInstaller build with a Splash
+        pyi_splash.close()
+    except Exception:
+        pass
+
+
 def run_window(folder: str | None = None) -> int:
     try:
         import webview
@@ -84,9 +93,18 @@ def run_window(folder: str | None = None) -> int:
     app.allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     api = DesktopApi()
+    # Hidden until the page has loaded, so the user sees the splash, then the
+    # finished window: never a blank white frame.
     window = webview.create_window(APP_TITLE, f"http://127.0.0.1:{port}/?t={app.token}", js_api=api,
-                                   width=1180, height=880, min_size=(760, 560), background_color="#f6f4ef")
+                                   width=1200, height=820, min_size=(820, 580), background_color="#f3f3f3",
+                                   hidden=True)
     api._window = window
+
+    def on_loaded() -> None:
+        _close_native_splash()
+        window.show()
+
+    window.events.loaded += on_loaded
     try:
         webview.start(private_mode=True)
     finally:
@@ -101,6 +119,8 @@ def main(argv: list[str] | None = None) -> int:
     _ensure_streams()
     hold_app_mutex()
     args = list(sys.argv[1:] if argv is None else argv)
+    if args and args[0] != "ui":
+        _close_native_splash()  # headless command (scheduled task, right-click): no splash
     if not args or args[0] == "ui":
         rest = [a for a in args[1:] if not a.startswith("-")]
         return run_window(rest[0] if rest else None)

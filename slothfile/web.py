@@ -43,6 +43,7 @@ class App:
         self.initial_folder = initial_folder
         self.jobs: dict[str, dict] = {}
         self.lock = threading.Lock()  # one file operation at a time
+        self.ai_lock = threading.Lock()  # one model setup at a time (it never touches user files)
         self.allowed_hosts: set[str] = set()
 
     def start_plan_job(self, folder: str, model: str | None, threshold: float) -> str:
@@ -66,15 +67,22 @@ class App:
         threading.Thread(target=run, daemon=True).start()
         return job_id
 
-    def start_job(self, fn) -> str:
-        """Run fn() in the background; the UI polls /api/job/<id> for its result."""
+    def start_job(self, fn, *, progress: bool = False) -> str:
+        """Run fn() in the background; the UI polls /api/job/<id> for its result.
+        With progress=True, fn(report) gets a callback whose (stage, percent)
+        appears in the job as job["progress"]."""
         job_id = uuid.uuid4().hex[:12]
         job = {"state": "running", "result": None, "error": None}
+        if progress:
+            job["progress"] = None
         self.jobs[job_id] = job
+
+        def report(stage: str, percent: float | None) -> None:
+            job["progress"] = {"stage": stage, "percent": percent}
 
         def run():
             try:
-                job["result"] = fn()
+                job["result"] = fn(report) if progress else fn()
                 job["state"] = "done"
             except Exception as e:
                 job["error"] = str(e) or type(e).__name__
@@ -83,6 +91,38 @@ class App:
 
         threading.Thread(target=run, daemon=True).start()
         return job_id
+
+
+def _home_folders() -> dict[str, str]:
+    """The user's standard folders that exist (quick choices in the app).
+    Uses the shell's known-folder locations, so redirected/OneDrive folders work."""
+    out: dict[str, str] = {}
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        known = {"Downloads": "{374DE290-123F-4565-9164-39C4925E467B}",
+                 "Desktop": "{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}",
+                 "Documents": "{FDD39AD0-238F-46AF-ADB4-6C85480369C7}"}
+
+        class GUID(ctypes.Structure):
+            _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD), ("Data3", wintypes.WORD),
+                        ("Data4", ctypes.c_ubyte * 8)]
+
+        for label, g in known.items():
+            guid = GUID()
+            ctypes.windll.ole32.CLSIDFromString(g, ctypes.byref(guid))
+            ptr = ctypes.c_wchar_p()
+            if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(ptr)) == 0:
+                path = ptr.value
+                ctypes.windll.ole32.CoTaskMemFree(ptr)
+                if path and os.path.isdir(path):
+                    out[label] = path
+    else:
+        for label in ("Downloads", "Desktop", "Documents"):
+            p = os.path.join(os.path.expanduser("~"), label)
+            if os.path.isdir(p):
+                out[label] = p
+    return out
 
 
 def _str_list(value, name: str) -> list[str]:
@@ -170,14 +210,19 @@ def make_handler(app: App):
             if not self._authorized():
                 return self._json(403, {"error": "forbidden"})
             if url.path == "/api/state":
+                from . import __version__
                 return self._json(200, {"initial_folder": app.initial_folder, "default_model": DEFAULT_MODEL,
-                                        "runs": list_runs()})
+                                        "runs": list_runs(), "version": __version__,
+                                        "home_folders": _home_folders()})
             if url.path == "/api/model":
                 try:
                     status = OllamaClient(DEFAULT_MODEL).health()
                     return self._json(200, {"available": True, "status": status})
                 except ModelError as e:
                     return self._json(200, {"available": False, "status": str(e)})
+            if url.path == "/api/ai/status":
+                from . import ai_setup
+                return self._json(200, ai_setup.status())
             if url.path == "/api/settings":
                 from .rules import CATEGORIES
                 from .settings import load_settings
@@ -191,6 +236,9 @@ def make_handler(app: App):
                 return self._json(200, {"rules": [asdict(r) for r in learning.learned_rules()]})
             if url.path == "/api/automation":
                 return self._json(200, _automation_state())
+            if url.path == "/api/predictor":
+                from . import predict  # info() never imports torch
+                return self._json(200, predict.info())
             if url.path.startswith("/api/job/"):
                 job = app.jobs.get(url.path.rsplit("/", 1)[-1])
                 return self._json(200, job) if job else self._json(404, {"error": "no such job"})
@@ -257,6 +305,25 @@ def make_handler(app: App):
                 finally:
                     app.lock.release()
                 return self._json(200, _report_dict(report))
+            if path == "/api/ai/setup":
+                from . import ai_setup
+                if body.get("confirm") is not True:
+                    raise ValueError("confirmation required")
+                if not app.ai_lock.acquire(blocking=False):
+                    return self._json(409, {"error": "model setup is already running"})
+
+                def locked_setup(report):
+                    try:
+                        return ai_setup.setup(report)
+                    finally:
+                        app.ai_lock.release()
+
+                try:
+                    job_id = app.start_job(locked_setup, progress=True)
+                except BaseException:  # the thread never started, so it can't release the lock
+                    app.ai_lock.release()
+                    raise
+                return self._json(200, {"job": job_id})
             if path == "/api/settings":
                 from .settings import save_settings
                 changes = body.get("changes")
@@ -277,6 +344,9 @@ def make_handler(app: App):
                 from . import reviewlog
                 reviewlog.reset()  # also the history the predictor learns from
                 return self._json(200, {"ok": True})
+            if path == "/api/predictor/selftest":
+                from . import predict  # fits on made-up rows, never the user's history
+                return self._json(200, {"job": app.start_job(predict.selftest)})
             if path == "/api/cleanup/scan":
                 from . import cleanup
                 return self._json(200, {"job": app.start_job(lambda: cleanup.scan_cleanup().to_dict())})

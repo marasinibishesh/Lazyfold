@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from typing import Callable
 
-from .llm import DEFAULT_MODEL, ModelAdvice, ModelError, OllamaClient
+from .llm import DEFAULT_MODEL, DEFAULT_URL, ModelAdvice, ModelError, OllamaClient
 from .models import FileRecord
 from .rules import DOC_CATEGORIES, Decision, classify, find_dates, is_generic_name
 
@@ -115,9 +115,32 @@ def make_classifier(model: str | None, *, base_url: str | None = None,
     if not model:
         return classify, "rules", "rules only (no model selected)"
     try:
-        client = OllamaClient(model or DEFAULT_MODEL, base_url or "http://127.0.0.1:11434", timeout=timeout)
-        status = client.health()
+        client = OllamaClient(model or DEFAULT_MODEL, base_url or DEFAULT_URL, timeout=timeout)
+        try:
+            status = client.health()
+        except ModelError:
+            # Only our own default local server is worth starting; a custom URL is the user's business.
+            if base_url not in (None, DEFAULT_URL) or not _autostart_ollama():
+                raise
+            status = client.health()
         client.warm_up()
     except ModelError as e:
         return classify, "rules", f"model unavailable - {e}; using rules only"
     return HybridClassifier(client), "rules+model", status
+
+
+def _autostart_ollama() -> bool:
+    """Start an installed-but-stopped Ollama once, if the user wants the model.
+    WHY: after a reboot Ollama is often not running, and users of the installed
+    app have no terminal to type `ollama serve` into. Never raises."""
+    try:
+        from . import ai_setup
+        from .settings import load_settings
+        if not load_settings().get("use_model"):
+            return False
+        path = ai_setup.find_ollama()
+        if not path or ai_setup.server_running():
+            return False  # nothing to start, or it is running and the problem is something else
+        return ai_setup.start_server(path, wait=15.0)  # a cold start measured ~5 s
+    except Exception:
+        return False

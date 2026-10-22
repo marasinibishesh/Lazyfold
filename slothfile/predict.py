@@ -7,8 +7,10 @@ automatic moves the user usually changes; it never moves anything by itself.
 
 TabPFN pulls in torch, so it is an optional extra (`pip install
 slothfile[predict]`, CPU torch first) and is imported lazily inside functions:
-the rest of SlothFile and the packaged exe never import it. Weights (TabPFN v2,
+the rest of SlothFile and the lean exe never import it. Weights (TabPFN v2,
 ~29 MB) download once from Hugging Face without a login into %APPDATA%\\tabpfn.
+The "Full" Windows build (packaging/slothfile-full.spec) bundles torch, tabpfn
+and the v2 checkpoint under tabpfn_models/, so installed users never download.
 Built with PriorLabs-TabPFN (Prior Labs License: Apache 2.0 + attribution).
 """
 
@@ -17,8 +19,11 @@ from __future__ import annotations
 import importlib.util
 import logging
 import os
+import random
+import sys
 import threading
 import time
+import traceback
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +39,7 @@ TIME_LIMIT = 60.0  # seconds for fit + predict
 N_ESTIMATORS = 4
 
 _last_status = "not run yet"
+_last_error = ""  # traceback of the last failed fit, for selftest diagnostics
 _model_cache: tuple[tuple[Any, ...], Any, dict[str, dict[str, int]]] | None = None
 _lock = threading.Lock()
 _busy: threading.Thread | None = None  # the fit thread, kept to detect an abandoned one
@@ -42,12 +48,14 @@ _busy: threading.Thread | None = None  # the fit thread, kept to detect an aband
 def available() -> tuple[bool, str]:
     """Is TabPFN installed? Cheap: looks for the packages without importing
     torch (that takes seconds and lots of memory)."""
-    for mod in ("torch", "tabpfn"):
+    for mod in ("numpy", "torch", "tabpfn"):
         try:
-            if importlib.util.find_spec(mod) is None:
-                return False, f"{mod} is not installed (pip install slothfile[predict], CPU torch first)"
+            spec = importlib.util.find_spec(mod)
         except (ImportError, ValueError):
             return False, f"{mod} cannot be imported"
+        # origin None = an empty namespace package (e.g. files left by an old install)
+        if spec is None or spec.origin in (None, "namespace"):
+            return False, f"{mod} is not installed (pip install slothfile[predict], CPU torch first)"
     return True, "TabPFN is installed"
 
 
@@ -62,6 +70,31 @@ def history_status() -> dict[str, Any]:
 def _cache_root() -> Path:
     base = os.environ.get("APPDATA") or str(Path.home() / ".cache")
     return Path(base) / "tabpfn"
+
+
+BUNDLED_DIR = "tabpfn_models"
+BUNDLED_GLOB = "tabpfn-v2-classifier*.ckpt"  # tabpfn infers the version from this name
+
+
+def bundled_checkpoint() -> Path | None:
+    """The v2 checkpoint shipped inside the Full build, or None (source
+    installs, the lean build). Only looked for when frozen, so a stray file in
+    a dev checkout never changes behaviour."""
+    if not getattr(sys, "frozen", False):
+        return None
+    base = Path(getattr(sys, "_MEIPASS", None) or Path(sys.executable).parent)
+    try:
+        found = sorted((base / BUNDLED_DIR).glob(BUNDLED_GLOB))
+    except OSError:
+        return None
+    return next((f for f in found if f.is_file()), None)
+
+
+def weights_source() -> str:
+    ckpt = bundled_checkpoint()
+    if ckpt is not None:
+        return f"bundled with the app ({ckpt.name})"
+    return f"downloaded on first use into {_cache_root()}"
 
 
 def _model_version(ModelVersion: Any) -> Any:
@@ -105,6 +138,11 @@ def _make_classifier() -> Any:
     from tabpfn import TabPFNClassifier  # lazy: pulls in torch
     from tabpfn.constants import ModelVersion
     cat_idx = [i for i, n in enumerate(reviewlog.FEATURES) if n in reviewlog.CATEGORICAL]
+    ckpt = bundled_checkpoint()
+    if ckpt is not None:  # Full build: no download, no network
+        return TabPFNClassifier.create_default_for_version(
+            ModelVersion.V2, model_path=str(ckpt), device="cpu", n_estimators=N_ESTIMATORS,
+            categorical_features_indices=cat_idx)
     return TabPFNClassifier.create_default_for_version(
         _model_version(ModelVersion), device="cpu", n_estimators=N_ESTIMATORS,
         categorical_features_indices=cat_idx)
@@ -144,7 +182,7 @@ def fit_predict_rows(train: list[dict[str, Any]], test: list[dict[str, Any]], *,
     stored by reviewlog; only the newest MAX_TRAIN_ROWS are used). None on any
     error or timeout. A fitted model is reused while `cache_key` is unchanged.
     Also used by scripts/predictor_eval.py."""
-    global _last_status
+    global _last_status, _last_error, _busy
     train = train[-MAX_TRAIN_ROWS:]
     result: dict[str, Any] = {}
 
@@ -153,8 +191,8 @@ def fit_predict_rows(train: list[dict[str, Any]], test: list[dict[str, Any]], *,
             result["p"] = _fit_predict(train, test, cache_key)
         except BaseException as e:  # noqa: BLE001 - any failure just means "no prediction"
             result["err"] = f"{type(e).__name__}: {e}"
+            result["tb"] = traceback.format_exc()
 
-    global _busy
     if _busy is not None and _busy.is_alive():
         # A previous fit timed out and is still running: don't pile up more fits.
         _last_status = "predictor is still busy with a previous fit; skipped"
@@ -171,6 +209,7 @@ def fit_predict_rows(train: list[dict[str, Any]], test: list[dict[str, Any]], *,
         log.warning(_last_status)
         return None
     if "err" in result:
+        _last_error = result.get("tb", "")
         _last_status = f"predictor failed ({result['err'][:200]})"
         log.warning(_last_status)
         return None
@@ -207,6 +246,81 @@ def predict_accept(plan: Plan) -> dict[str, float] | None:
 
 def status() -> str:
     return _last_status
+
+
+def info() -> dict[str, Any]:
+    """Everything a settings screen needs, without importing torch."""
+    ok, why = available()
+    return {"available": ok, "detail": why, "weights": weights_source() if ok else None,
+            "bundled": bundled_checkpoint() is not None, "history": history_status(),
+            "min_rows": MIN_ROWS, "min_per_class": MIN_PER_CLASS, "last_run": _last_status}
+
+
+def _synthetic_rows(n: int, rng: random.Random) -> list[dict[str, Any]]:
+    """Made-up review history (no user data): a user who keeps everything
+    except bank statements and low-confidence model guesses, with 5% noise."""
+    kinds = [(".exe", "installers", ""), (".zip", "archives", "github.com"), (".png", "screenshots", ""),
+             (".pdf", "documents", "mail.example"), (".csv", "spreadsheets", "bank.example"),
+             (".csv", "spreadsheets", "kaggle.com"), (".mp3", "audio", "")]
+    rows = []
+    for _ in range(n):
+        ext, cat, host = rng.choice(kinds)
+        engine = rng.choice(["rules", "rules", "ollama"])
+        conf = rng.uniform(0.85, 0.99) if engine == "rules" else rng.uniform(0.4, 0.95)
+        label = 0 if host == "bank.example" or (engine == "ollama" and conf < 0.6) else 1
+        if rng.random() < 0.05:
+            label = 1 - label
+        rows.append({"plan_id": "selftest", "label": label, "features": {
+            "ext": ext, "category": cat, "confidence": round(conf, 4), "engine": engine,
+            "renamed": rng.random() < 0.2, "source_host_known": bool(host), "source_host": host,
+            "log2_size": round(rng.uniform(10, 28), 3), "age_days": round(rng.uniform(0, 60), 2),
+            "weekday": rng.randrange(7), "hour": rng.randrange(24)}})
+    return rows
+
+
+def _auc(labels: list[int], scores: list[float]) -> float:
+    """Rank AUC (ties count half); stdlib so the selftest needs nothing else."""
+    pos = [s for s, y in zip(scores, labels) if y == 1]
+    neg = [s for s, y in zip(scores, labels) if y == 0]
+    if not pos or not neg:
+        return float("nan")
+    wins = sum((p > q) + 0.5 * (p == q) for p in pos for q in neg)
+    return wins / (len(pos) * len(neg))
+
+
+def selftest(n_train: int = 200, n_test: int = 100, seed: int = 0,
+             time_limit: float = 300.0) -> dict[str, Any]:
+    """Fit TabPFN on a built-in synthetic history and score held-out rows.
+    Proves an install can really predict (weights load, torch runs) without
+    touching the user's review log. A healthy run scores AUC well above 0.9."""
+    ok, why = available()
+    out: dict[str, Any] = {"ok": False, "available": ok, "detail": why,
+                           "weights": weights_source() if ok else None,
+                           "rows_train": n_train, "rows_test": n_test}
+    if not ok:
+        return out
+    global _last_status, _last_error
+    rng = random.Random(seed)
+    train, test = _synthetic_rows(n_train, rng), _synthetic_rows(n_test, rng)
+    with _lock:  # never run alongside a real prediction
+        saved = (_last_status, _last_error)
+        try:
+            t0 = time.perf_counter()
+            probs = fit_predict_rows(train, [r["features"] for r in test], time_limit=time_limit)
+            out["seconds"] = round(time.perf_counter() - t0, 2)
+            out["status"] = _last_status
+            failure = _last_error
+        finally:
+            _last_status, _last_error = saved  # the self-test is not "the last real run"
+    if probs is None:
+        if failure:
+            out["traceback"] = failure[-4000:]
+        return out
+    labels = [r["label"] for r in test]
+    out["auc"] = round(_auc(labels, probs), 4)
+    out["accuracy"] = round(sum((p >= 0.5) == bool(y) for p, y in zip(probs, labels)) / len(labels), 4)
+    out["ok"] = out["auc"] >= 0.8
+    return out
 
 
 def explain() -> str:

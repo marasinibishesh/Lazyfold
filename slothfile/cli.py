@@ -16,6 +16,7 @@ Be lazier
     slothfile summary [--days 7] [--notify]
     slothfile learned [--forget KEY | --reset]
     slothfile settings [KEY=VALUE ...]
+    slothfile predictor status | selftest   the optional TabPFN approval predictor
     slothfile shell-install [--run-alias] | shell-uninstall
 
 Storage cleanup
@@ -163,6 +164,11 @@ def main(argv: list[str] | None = None) -> int:
 
     st = sub.add_parser("settings", help="show or change settings")
     st.add_argument("pairs", nargs="*", help="KEY=VALUE (JSON values, e.g. ocr=false)")
+
+    pr = sub.add_parser("predictor", help="the optional TabPFN approval predictor")
+    prs = pr.add_subparsers(dest="pred_cmd", required=True)
+    prs.add_parser("status", help="is TabPFN installed, where the weights are, how much history there is")
+    prs.add_parser("selftest", help="fit on built-in made-up data (not yours) to prove predictions work")
 
     si = sub.add_parser("shell-install", help='add "Tidy with SlothFile" to the Explorer right-click menu')
     si.add_argument("--run-alias", action="store_true", help='also let Windows+R open SlothFile by typing "slothfile"')
@@ -340,6 +346,15 @@ def _dispatch(args) -> int:
             save_settings(changes)
         print(json.dumps(load_settings(), indent=2))
         return 0
+
+    if args.cmd == "predictor":
+        from . import predict
+        if args.pred_cmd == "status":
+            print(json.dumps(predict.info(), indent=2))
+            return 0
+        res = predict.selftest()
+        print(json.dumps(res, indent=2))
+        return 0 if res["ok"] else (4 if not res["available"] else 5)
 
     if args.cmd == "shell-install":
         from . import automation
