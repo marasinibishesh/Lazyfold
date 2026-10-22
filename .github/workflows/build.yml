@@ -25,9 +25,15 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[content,dev]"
       - name: Run tests
+        shell: pwsh
         env:
           SLOTHFILE_CI: "1"
-        run: python -m pytest -q
+        run: |
+          python -m pytest -q -rfE 2>&1 | Tee-Object -FilePath pytest-output.txt
+          $code = $LASTEXITCODE
+          # Show each failure as an annotation on the run page.
+          Select-String -Path pytest-output.txt -Pattern '^(FAILED|ERROR) ' | ForEach-Object { Write-Output "::error title=pytest::$($_.Line)" }
+          exit $code
 
   build:
     needs: test
