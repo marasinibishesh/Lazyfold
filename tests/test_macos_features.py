@@ -423,7 +423,14 @@ def test_mac_root_refusals_outside_home(mac, tmp_path, monkeypatch):
         "outside your user folders"
     assert cleanup._root_refusal(executor.canonical(tmp_path)) is not None  # contains the home folder
     assert cleanup._root_refusal(executor.canonical(mac / "Library" / "Logs")) is None
-    assert cleanup._root_refusal(executor.canonical(tmp_path / "var" / "folders" / "a" / "b" / "T" / "x")) is None
+    t = tmp_path / "var" / "folders" / "a" / "b" / "T"
+    other = tmp_path / "var" / "folders" / "c" / "d" / "T"
+    for d in (t / "x", other / "x"):
+        d.mkdir(parents=True)
+    assert cleanup._root_refusal(executor.canonical(t / "x")) is not None  # no $TMPDIR: nothing temp allowed
+    monkeypatch.setenv("TMPDIR", str(t))
+    assert cleanup._root_refusal(executor.canonical(t / "x")) is None
+    assert cleanup._root_refusal(executor.canonical(other / "x")) == "outside your user folders"  # someone else's
 
 
 def test_mac_tmpdir_must_be_the_per_user_folder(mac, tmp_path, monkeypatch):

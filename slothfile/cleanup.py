@@ -206,16 +206,6 @@ def _is_crash_report(name: str, depth: int) -> bool:
     return _ext(name) in CRASH_REPORT_EXT
 
 
-def _in_mac_tmpdir(p: Path) -> bool:
-    """True for the per-user temporary folder /private/var/folders/xx/yyyy/T
-    or anything inside it (checked on the canonical path's parts)."""
-    parts = Path(p).parts
-    for i in range(len(parts) - 3):
-        if parts[i] == "var" and i + 4 < len(parts) and parts[i + 1] == "folders" and parts[i + 4] == "T":
-            return True
-    return False
-
-
 def _mac_temp_roots() -> list[Path]:
     """$TMPDIR, canonical, and only when it really is the per-user
     /var/folders/../T folder (a TMPDIR pointing at home or / is ignored)."""
@@ -309,8 +299,8 @@ def _mac_root_refusal(root: Path) -> str | None:
             if rel[:len(bad)] == bad:
                 return "a personal or system app folder"
         return None
-    if _in_mac_tmpdir(root):
-        return None
+    if any(root == t or is_within(t, root) for t in _mac_temp_roots()):
+        return None  # this user's own $TMPDIR, not any /var/folders/../T
     return "outside your user folders"
 
 
