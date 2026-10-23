@@ -7,8 +7,8 @@ Created by **[Bishesh Marasini](https://github.com/marasinibishesh)**.
 ![SlothFile review screen: TabPFN lists the moves you'd probably change first (demo folder and demo history)](docs/screenshots/review.png)
 
 - **Organize** — sorts files into folders (Documents, Images, Installers…), gives files like `document (3).pdf` a real name, and shows you the whole plan first. Nothing moves until you approve, and every run can be undone.
-- **Clean up** — finds temporary files and caches you can safely remove (the safe version of Windows+R → `%temp%`). Files go to the Recycle Bin by default.
-- **Automation** — tidy on a schedule, from the right-click menu, or with Windows+R → `slothfile`.
+- **Clean up** — finds temporary files and caches you can safely remove (the safe version of Windows+R → `%temp%`). Files go to the Recycle Bin (the Trash on a Mac) by default.
+- **Automation** — tidy on a schedule, from the right-click menu (a Finder Quick Action on a Mac), or with Windows+R → `slothfile`.
 - **Private** — everything runs on your computer. No account, no upload.
 
 ## Partner technology
@@ -53,7 +53,7 @@ Needs Windows 10 or 11 (64-bit). No administrator rights are needed.
 
 ### On a Mac
 
-1. From the same release, download `SlothFile-<version>-mac.dmg` (or `SlothFile-Full-<version>-mac.dmg` for *Smart predictions*). It needs an Apple Silicon Mac (M1 or newer) with macOS 11 or later.
+1. From the same release, download `SlothFile-<version>-mac.dmg` (~22 MB), or `SlothFile-Full-<version>-mac.dmg` (~360 MB) for *Smart predictions*. It needs an Apple Silicon Mac (M1 or newer) with macOS 11 or later.
 2. Open the .dmg and drag **SlothFile** onto **Applications**.
 3. The first time, **right-click SlothFile → Open → Open** (the app is not signed or notarized by Apple). If macOS still refuses, go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
@@ -77,11 +77,11 @@ Intel Macs: [run from source](#run-from-source). The Mac app is built and tested
 **Free up space**
 
 1. Open **Clean up** and click **Scan**.
-2. Tick what to remove and click **Clean selected**. Files go to the Recycle Bin unless you choose *Delete permanently* (which asks you to confirm).
+2. Tick what to remove and click **Clean selected**. Files go to the Recycle Bin (the Trash on a Mac) unless you choose *Delete permanently* (which asks you to confirm).
 
 **Let it work for you**
 
-Open **Automation** to tidy a folder every day, turn on the right-click menu entry, or add the Windows+R shortcut. Automatic runs only move the kinds of file you trust (installers, images, archives…). Documents always wait for you.
+Open **Automation** to tidy a folder every day, turn on the right-click menu entry (Finder Quick Action on a Mac), or add the Windows+R shortcut. Automatic runs only move the kinds of file you trust (installers, images, archives…). Documents always wait for you.
 
 ![Clean up](docs/screenshots/cleanup.png)
 
@@ -89,7 +89,7 @@ Open **Automation** to tidy a folder every day, turn on the right-click menu ent
 
 Open **Settings** (bottom-left) to change the default folder, the theme (System / Light / Dark), and which features are on.
 
-- **Local AI (Gemma 4)** — optional. Reads documents to sort and name them better. Click **Set up** once: it installs [Ollama](https://ollama.com) and downloads Gemma 4 (about 4.3 GB). It runs entirely on your PC and can only *suggest*; you still approve every move.
+- **Local AI (Gemma 4)** — optional. Reads documents to sort and name them better. Click **Set up** once: it installs [Ollama](https://ollama.com) (on a Mac through Homebrew, or it points you to Ollama's Mac download) and downloads Gemma 4 (about 4.3 GB). It runs entirely on your PC and can only *suggest*; you still approve every move.
 - **Smart predictions (TabPFN)** — in the Full edition. Turn it on or off, choose how careful the automatic tidy is, and click **Check now** to see how well it predicts your choices (see [Partner technology](#partner-technology)).
 - **Privacy & learning** — see or forget what SlothFile learned from your corrections.
 
@@ -100,6 +100,8 @@ Open **Settings** (bottom-left) to change the default folder, the theme (System 
 **Settings → Apps → Installed apps → SlothFile → Uninstall.** This removes the app, its shortcuts and its scheduled tasks. Files you organized stay where they are.
 
 Your undo history and settings are kept in `%LOCALAPPDATA%\SlothFile`; delete that folder too if you want them gone.
+
+On a Mac, drag SlothFile from Applications to the Trash (see [On a Mac](#on-a-mac)).
 
 ## Safety
 
@@ -166,9 +168,15 @@ winget install -e --id JRSoftware.InnoSetup --scope user
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" packaging\slothfile.iss
 ```
 
-The installer appears in `packaging\output\`. On a Mac, `pyinstaller packaging/slothfile-mac.spec --noconfirm --distpath packaging/output/dist --workpath packaging/output/build` builds `SlothFile.app`; its command line is `SlothFile.app/Contents/MacOS/SlothFileCLI`. GitHub Actions builds both installers automatically and attaches them to a release whenever a version tag such as `v0.3.0` is pushed (see [`.github/workflows/build.yml`](.github/workflows/build.yml)).
+The installer appears in `packaging\output\`. On a Mac, `pyinstaller packaging/slothfile-mac.spec --noconfirm --distpath packaging/output/dist --workpath packaging/output/build` builds `SlothFile.app`; its command line is `SlothFile.app/Contents/MacOS/SlothFileCLI`. GitHub Actions tests on Windows and macOS, builds the Windows installers and the Mac .dmg files, and attaches them to a release whenever a version tag such as `v0.5.0` is pushed (see [`.github/workflows/build.yml`](.github/workflows/build.yml)).
 
 ---
+
+## About this project
+
+SlothFile was built for the [DEV Hacktoberfest Open-Source AI Challenge](https://dev.to/challenges/hacktoberfest-week3-2026-10-19) (week 3, "Slow and Steady"), October 2026.
+
+**Changes after the challenge deadline (Oct 25, 2026, 11:59 PM PDT):** none so far. Any later commit will be listed here.
 
 ## License and credits
 
