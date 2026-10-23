@@ -172,12 +172,6 @@ The installer appears in `packaging\output\`. On a Mac, `pyinstaller packaging/s
 
 ---
 
-## About this project
-
-SlothFile was built for the [DEV Hacktoberfest Open-Source AI Challenge](https://dev.to/challenges/hacktoberfest-week3-2026-10-19) (week 3, "Slow and Steady"), October 2026.
-
-**Changes after the challenge deadline (Oct 25, 2026, 11:59 PM PDT):** none so far. Any later commit will be listed here.
-
 ## License and credits
 
 **SlothFile is created by Bishesh Marasini** and released under the [MIT License](LICENSE).
