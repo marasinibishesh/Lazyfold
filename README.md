@@ -4,12 +4,35 @@
 
 Created by **[Bishesh Marasini](https://github.com/marasinibishesh)**.
 
-![SlothFile](docs/screenshots/review.png)
+![SlothFile review screen: TabPFN lists the moves you'd probably change first (demo folder and demo history)](docs/screenshots/review.png)
 
 - **Organize** — sorts files into folders (Documents, Images, Installers…), gives files like `document (3).pdf` a real name, and shows you the whole plan first. Nothing moves until you approve, and every run can be undone.
 - **Clean up** — finds temporary files and caches you can safely remove (the safe version of Windows+R → `%temp%`). Files go to the Recycle Bin by default.
 - **Automation** — tidy on a schedule, from the right-click menu, or with Windows+R → `slothfile`.
 - **Private** — everything runs on your computer. No account, no upload.
+
+## Partner technology
+
+SlothFile works like a small agent. The rules (and Gemma, if you turn it on) **propose** where each file should go. **TabPFN predicts** whether *you* would accept each proposal. SlothFile then **acts or asks you**.
+
+### 1. TabPFN by Prior Labs — predicts which moves you'd accept
+
+**Built with PriorLabs-TabPFN.** TabPFN is a tabular foundation model. It runs on your CPU and learns only from your own review history: a table on your PC with one row per move you reviewed. Each row holds the file type, size, age, download site, the folder SlothFile proposed, the folder you chose, and whether you accepted. File names and contents are never stored.
+
+SlothFile uses its prediction in four places:
+
+- **Automatic tidy.** A file moves without asking only if the safe built-in rules are sure *and* TabPFN predicts you'd accept the move (85% by default, set in Settings). Everything else waits for you, and the notification says how many files were held back. TabPFN can only hold a move back. It never adds a move, renames or deletes anything.
+- **Review.** The moves you'd probably change are listed first under **Worth a look**. Nothing is unticked for you.
+- **Learning.** Your reviews become new training rows. Automatic moves you keep count as accepted, and **undoing an automatic tidy** teaches it to ask first next time.
+- **How well it knows you.** *Settings → Smart predictions → Check now* tests TabPFN on your newest reviews, which it was not trained on. It compares the result with simply accepting everything, so you can see whether it's worth trusting.
+
+It starts after 30 reviews, with at least 5 you accepted and 5 you changed. The **Full** installer bundles the TabPFN v2 model, so it works offline. The standard installer leaves TabPFN out and uses the rules alone.
+
+**Privacy:** SlothFile deliberately doesn't use Prior Labs' cloud API, Thinking Mode or MCP server, because they would upload information about your files.
+
+### 2. Gemma 4 by Google — reads documents (optional)
+
+Gemma runs locally through [Ollama](https://ollama.com) (*Settings → Local AI → Set up*, about 4.3 GB, one time). It reads the text of documents to choose a document folder and suggest a clear name. A suggested name is used only if it matches words in the file. Moves Gemma influenced always wait for your review, and TabPFN learns from your decisions how far to trust them.
 
 ---
 
@@ -20,8 +43,8 @@ Created by **[Bishesh Marasini](https://github.com/marasinibishesh)**.
 
    | File | Size | Choose it if… |
    |---|---|---|
-   | `SlothFile-Setup-<version>.exe` | ~16 MB | you want the normal app (**recommended**) |
-   | `SlothFile-Setup-Full-<version>.exe` | ~250 MB | you also want *Smart predictions* (TabPFN) to work offline |
+   | `SlothFile-Setup-<version>.exe` | ~18 MB | you want the normal app (**recommended**) |
+   | `SlothFile-Setup-Full-<version>.exe` | ~260 MB | you also want *Smart predictions* (TabPFN), bundled to work offline |
 
 3. Run it. If Windows says **"Windows protected your PC"**, click **More info → Run anyway** (the installer is not code-signed).
 4. Open **SlothFile** from the Start menu.
@@ -52,7 +75,7 @@ Open **Automation** to tidy a folder every day, turn on the right-click menu ent
 Open **Settings** (bottom-left) to change the default folder, the theme (System / Light / Dark), and which features are on.
 
 - **Local AI (Gemma 4)** — optional. Reads documents to sort and name them better. Click **Set up** once: it installs [Ollama](https://ollama.com) and downloads Gemma 4 (about 4.3 GB). It runs entirely on your PC and can only *suggest*; you still approve every move.
-- **Smart predictions (TabPFN)** — in the Full edition. After you have reviewed about 30 moves, it learns which moves you usually accept, so automatic runs only move files you would approve. It stores file features (type, size, folder), never names or contents.
+- **Smart predictions (TabPFN)** — in the Full edition. Turn it on or off, choose how careful the automatic tidy is, and click **Check now** to see how well it predicts your choices (see [Partner technology](#partner-technology)).
 - **Privacy & learning** — see or forget what SlothFile learned from your corrections.
 
 ![Settings](docs/screenshots/settings.png)
@@ -127,8 +150,8 @@ The installer appears in `packaging\output\`. GitHub Actions builds both install
 **SlothFile is created by Bishesh Marasini** and released under the [MIT License](LICENSE).
 
 It builds on:
+- [TabPFN](https://github.com/PriorLabs/TabPFN) by Prior Labs — **Built with PriorLabs-TabPFN.** The package is Apache 2.0; the v2 weights shipped in the Full edition are under the [Prior Labs License](https://huggingface.co/Prior-Labs/TabPFN-v2-clf/blob/main/LICENSE.txt), and a copy is installed with the app. Source installs that set `TABPFN_TOKEN` (after accepting Prior Labs' non-commercial TabPFN-3.5 license) switch to TabPFN-3.5-Fast (this path is not covered by SlothFile's tests); SlothFile never ships the 3.5 weights.
 - [Gemma 4](https://ai.google.dev/gemma) by Google, run locally with [Ollama](https://ollama.com) — optional, downloaded on your PC, not included here.
-- [TabPFN](https://github.com/PriorLabs/TabPFN) by Prior Labs — **Built with PriorLabs-TabPFN.** The package is Apache 2.0; the v2 weights shipped in the Full edition are under the [Prior Labs License](https://huggingface.co/Prior-Labs/TabPFN-v2-clf/blob/main/LICENSE.txt).
 - [pywebview](https://pywebview.flowrl.com), [pypdf](https://github.com/py-pdf/pypdf), [Pillow](https://python-pillow.org), [PyInstaller](https://pyinstaller.org) and [Inno Setup](https://jrsoftware.org/isinfo.php).
 
 The full list of bundled components is in `THIRD-PARTY-NOTICES.txt` in the install folder.

@@ -171,6 +171,10 @@ select.input { padding-right: 26px; }
 .group-head .fold { width: 18px; height: 18px; flex: none; }
 .group-head b { font-weight: 600; }
 .group-head .count { color: var(--text-3); }
+.group.worth { border-color: var(--warn); }
+.group.worth .group-head b { color: var(--warn); }
+.item .lookwhy { color: var(--text-2); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sort-note { margin: 0 0 8px; }
 .item { display: grid; grid-template-columns: 20px minmax(0,1fr) auto auto; align-items: center; gap: 4px 12px; padding: 9px 14px;
   border-top: 1px solid var(--stroke); transition: background .1s; }
 .item:hover { background: var(--surface-2); }
@@ -474,7 +478,11 @@ dialog .dfoot .btn { min-width: 120px; }
         <div class="label"><b id="pred-title">Learns which moves you accept</b><span id="pred-text">After about 30 reviewed moves, the automatic tidy only moves files you'd very likely approve, and the plan flags the ones you usually change.</span></div>
         <span class="switch"><input type="checkbox" data-setting="use_predictor"><i></i></span>
       </div>
-      <div class="setting last"><div class="label"><span>Built with PriorLabs-TabPFN. Runs on this PC. Only file features are kept (type, size, folder chosen), never names or contents.</span></div></div>
+      <div class="setting"><div class="label"><b>Automatic tidy waits for me when TabPFN thinks I'd accept a move less than this (%)</b><span>This only makes the automatic tidy more careful. TabPFN never moves anything on its own.</span></div>
+        <input class="input num" type="number" min="50" max="99" step="1" id="accept-min" aria-label="Percent"></div>
+      <div class="setting"><div class="label"><b>How well it knows you</b><span id="bt-text">Tests TabPFN on your newest reviews, which it was not trained on, and compares it with simply accepting everything.</span></div>
+        <button class="btn" id="bt-run">Check now</button></div>
+      <div class="setting last"><div class="label"><span>Built with PriorLabs-TabPFN. Runs on this PC. Kept on this PC only: file type, size, age, download site, the folder SlothFile proposed, the folder you chose, and whether you accepted it. Never file names or contents.</span></div></div>
 
       <div class="section-title">Organizing</div>
       <div class="setting first"><div class="label"><b>Read scanned PDFs and photos of documents</b><span>Uses Windows' built-in text recognition (OCR)</span></div><span class="switch"><input type="checkbox" data-setting="ocr"><i></i></span></div>
@@ -710,7 +718,8 @@ $("scan").onclick = async () => {
   try {
     const { job } = await api("/api/plan", { folder: $("folder").value.trim(), use_model: $("use-model").checked });
     const j = await waitJob(job, (j) => {
-      if (j.total) { bar.classList.remove("indet"); bar.firstElementChild.style.width = Math.round(100 * j.done / j.total) + "%";
+      if (j.stage) { bar.classList.add("indet"); $("scan-text").textContent = j.stage; }
+      else if (j.total) { bar.classList.remove("indet"); bar.firstElementChild.style.width = Math.round(100 * j.done / j.total) + "%";
         $("scan-text").textContent = `Looking at ${j.done} of ${j.total}: ${j.current}`; }
     });
     S.plan = j.plan; renderPlan();
@@ -732,28 +741,40 @@ function folderSelect(p) {
     if (box) { box.checked = s.value !== "keep"; updateCount(); } };
   return s;
 }
+// TabPFN scores only change the order and the labels. Every row keeps the
+// tick it came with, and Apply moves exactly the ticked rows.
+const HELD = "Held back: you usually change files like these";
+const folderOf = (p) => p.dest_rel.split(/[\\/]/).slice(0, -1).join(" › ");
 function renderPlan() {
   const moves = S.plan.proposals.filter((p) => p.action === "move");
   const recycles = S.plan.proposals.filter((p) => p.action === "recycle");
   const keeps = S.plan.proposals.filter((p) => p.action === "keep");
-  const groups = {};
-  for (const p of moves) (groups[p.dest_rel.split(/[\\/]/).slice(0, -1).join(" › ")] ||= []).push(p);
   const s = S.plan.scan_stats || {};
+  const held = new Set((s.auto && s.auto.held_back) || []);
+  const scored = moves.some((p) => p.accept_prob != null);
+  const isWorth = (p) => held.has(p.rel_path) || (p.accept_prob != null && p.accept_prob < 0.5);
+  const worth = moves.filter(isWorth).sort((a, b) => (a.accept_prob ?? 1) - (b.accept_prob ?? 1));
+  const groups = {};
+  for (const p of moves) if (!isWorth(p)) (groups[folderOf(p)] ||= []).push(p);
   $("summary").replaceChildren(
     el("span", { class: "chip accent", text: plural(moves.length, "file") + " to organize" }),
-    el("span", { class: "chip", text: Object.keys(groups).length + " folders" }),
+    el("span", { class: "chip", text: new Set(moves.map(folderOf)).size + " folders" }),
     keeps.length ? el("span", { class: "chip", text: keeps.length + " left alone" }) : null,
     recycles.length ? el("span", { class: "chip", text: recycles.length + " old installers" }) : null,
     el("span", { class: "chip", text: (s.model_status || "").startsWith("gemma") ? "Local AI on" : "Built-in rules" }),
+    scored && s.predictor ? el("span", { class: "chip", text: s.predictor }) : null,
+    worth.length ? el("span", { class: "chip", text: worth.length + " worth a look" }) : null,
   );
   const wrap = $("groups"); wrap.replaceChildren();
+  if (scored) wrap.append(el("p", { class: "small muted sort-note", text: "Sorted by TabPFN from your past reviews. Nothing has been unticked for you." }));
   let delay = 0;
-  for (const dir of Object.keys(groups).sort()) {
-    const items = groups[dir];
+  const lists = Object.keys(groups).sort().map((dir) => [dir, groups[dir], false]);
+  if (worth.length) lists.unshift(["Worth a look", worth, true]);
+  for (const [dir, items, look] of lists) {
     const all = el("input", { type: "checkbox", class: "check", checked: items.every((p) => p.approved), title: "Select all in " + dir });
     const head = el("div", { class: "group-head" }, svgIcon(ICON.chev, "chev"), all, el("b", { text: dir }), el("span", { class: "count", text: "· " + items.length }));
     const body = el("div", { class: "group-body" });
-    const g = el("div", { class: "group" }, head, body); g.style.animationDelay = Math.min(delay, 400) + "ms"; delay += 35;
+    const g = el("div", { class: "group" + (look ? " worth" : "") }, head, body); g.style.animationDelay = Math.min(delay, 400) + "ms"; delay += 35;
     head.onclick = (ev) => { if (ev.target !== all) g.classList.toggle("collapsed"); };
     const boxes = [];
     for (const p of items) {
@@ -761,14 +782,22 @@ function renderPlan() {
       box.dataset.rel = p.rel_path; box.onchange = updateCount; boxes.push(box);
       const nameCol = el("div", { class: "grow" }, el("div", { class: "name", text: p.rel_path, title: p.rel_path }));
       if (p.new_name) nameCol.append(el("div", { class: "newname", text: "→ " + p.new_name, title: "New name" }));
+      if (look) {
+        const why = held.has(p.rel_path) ? HELD : "You often change moves like this";
+        nameCol.append(el("div", { class: "lookwhy", text: `${why} · to ${folderOf(p)}`, title: folderOf(p) }));
+      }
       const tags = el("span");
       if (p.engine === "rules+model") tags.append(el("span", { class: "tag ai", text: "AI" }));
       if (p.engine === "rules+learned") tags.append(el("span", { class: "tag", text: "learned" }));
       if (p.near_duplicate) tags.append(el("span", { class: "tag warn", text: "similar copy" }));
       else if (p.duplicate_of) tags.append(el("span", { class: "tag", text: "duplicate" }));
       if (p.extract_to) tags.append(el("span", { class: "tag", text: "unzip" }));
-      if (p.accept_prob != null && p.accept_prob >= 0.8) tags.append(el("span", { class: "tag ai", text: `you usually accept (${Math.round(p.accept_prob * 100)}%)` }));
-      if (p.accept_prob != null && p.accept_prob < 0.5) tags.append(el("span", { class: "tag warn", text: `you often change this (${Math.round(p.accept_prob * 100)}%)` }));
+      if (p.accept_prob != null) {
+        const pct = Math.round(p.accept_prob * 100);
+        if (p.accept_prob >= 0.8) tags.append(el("span", { class: "tag ai", text: `you usually accept (${pct}%)` }));
+        else if (p.accept_prob < 0.5) tags.append(el("span", { class: "tag warn", text: `you often change this (${pct}%)` }));
+        else tags.append(el("span", { class: "tag", text: `not sure (${pct}%)` }));
+      }
       nameCol.firstChild.append(tags);
       const why = el("button", { class: "btn subtle why", title: "Why, and change" }, svgIcon(ICON.info));
       const details = el("div", { class: "details" }, el("div", { text: p.reasons.join(" · ") }));
@@ -1018,6 +1047,10 @@ document.querySelectorAll("[data-setting]").forEach((i) => i.onchange = () => {
 document.querySelectorAll("#theme button").forEach((b) => b.onclick = () => { applyTheme(b.dataset.v); save({ theme: b.dataset.v }, true); });
 $("conf").oninput = () => { $("conf-text").textContent = `The rules must be at least ${$("conf").value}% sure`; };
 $("conf").onchange = () => save({ auto_min_confidence: Number($("conf").value) / 100 });
+$("accept-min").onchange = () => {
+  const v = Math.min(99, Math.max(50, Math.round(Number($("accept-min").value) || 85)));
+  $("accept-min").value = v; save({ auto_min_accept_prob: v / 100 });
+};
 $("def-folder-pick").onclick = async () => {
   const tmp = el("input"); const f = await pickInto(tmp);
   if (f) { await save({ default_folder: f }); $("def-folder-text").textContent = f; }
@@ -1040,6 +1073,7 @@ async function loadSettingsPage() {
     applyTheme(s.theme);
     $("def-folder-text").textContent = s.default_folder || (S.home.Downloads ? `Downloads (${S.home.Downloads})` : "Pre-filled when SlothFile opens");
     $("conf").value = Math.round((s.auto_min_confidence || 0.9) * 100); $("conf").oninput();
+    $("accept-min").value = Math.round((s.auto_min_accept_prob || 0.85) * 100);
     const grid = $("trusted"); grid.replaceChildren();
     for (const [key, label] of Object.entries(S.categories)) {
       const b = el("input", { type: "checkbox", class: "check", checked: s.auto_approve_categories.includes(key) });
@@ -1099,8 +1133,25 @@ async function loadPredictor() {
         : `${plural(h.rows, "reviewed move")} so far. It also needs at least ${p.min_per_class || 5} moves you `
           + ((h.negatives || 0) < (p.min_per_class || 5) ? "changed or unticked" : "accepted")
           + ", so it can tell the difference.";
+    $("bt-run").disabled = !p.available;
+    if (p.backtest) showBacktest(p.backtest);
   } catch (e) { /* older server: keep the description */ }
 }
+// Plain numbers from the user's own history, never examples.
+function showBacktest(b) {
+  if (!b.ok) { $("bt-text").textContent = b.why || "The test could not run."; return; }
+  let t = `Tested on your newest ${plural(b.n_test, "review")} it hadn't seen (trained on the ${b.n_train} before them): `
+    + `${b.confident_accepted} of ${b.confident_n} moves it was confident about were ones you accepted `
+    + `(accepting everything: ${b.base_accepted} of ${b.n_test}). It flagged ${b.changes_flagged} of your ${plural(b.changes_n, "change")}.`;
+  if (!b.beats_baseline) t += " It isn't beating plain rules on your history yet. You can turn smart predictions off, or keep reviewing.";
+  $("bt-text").textContent = t;
+}
+$("bt-run").onclick = async () => {
+  $("bt-run").disabled = true; $("bt-text").textContent = "Testing on your past reviews…";
+  try { const { job } = await api("/api/predictor/backtest", {}); showBacktest((await waitJob(job)).result); }
+  catch (e) { handleError(e); }
+  finally { $("bt-run").disabled = false; }
+};
 
 init();
 </script>

@@ -48,15 +48,19 @@ class App:
 
     def start_plan_job(self, folder: str, model: str | None, threshold: float) -> str:
         job_id = uuid.uuid4().hex[:12]
-        job = {"state": "running", "done": 0, "total": 0, "current": "", "plan": None, "error": None}
+        job = {"state": "running", "done": 0, "total": 0, "current": "", "stage": None, "plan": None, "error": None}
         self.jobs[job_id] = job
 
         def progress(n, total, name):
             job.update(done=n, total=total, current=name)
 
+        def stage(label):  # a slow step after the per-file pass, e.g. TabPFN scoring
+            job["stage"] = label
+
         def run():
             try:
-                plan, status = make_plan(folder, model=model, threshold=threshold, progress=progress)
+                plan, status = make_plan(folder, model=model, threshold=threshold, progress=progress,
+                                         on_stage=stage)
                 job["plan"] = plan.to_dict()
                 job["state"] = "done"
             except Exception as e:  # surfaced to the UI as a readable error
@@ -347,6 +351,9 @@ def make_handler(app: App):
             if path == "/api/predictor/selftest":
                 from . import predict  # fits on made-up rows, never the user's history
                 return self._json(200, {"job": app.start_job(predict.selftest)})
+            if path == "/api/predictor/backtest":
+                from . import predict  # read-only test on the user's own review history
+                return self._json(200, {"job": app.start_job(predict.backtest)})
             if path == "/api/cleanup/scan":
                 from . import cleanup
                 return self._json(200, {"job": app.start_job(lambda: cleanup.scan_cleanup().to_dict())})

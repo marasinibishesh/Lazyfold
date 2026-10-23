@@ -102,13 +102,18 @@ def _write_rows(n_pos, n_neg):
 
 
 def test_history_readiness():
-    assert predict.history_status() == {"rows": 0, "positives": 0, "negatives": 0, "ready": False}
+    st = predict.history_status()
+    assert {k: st[k] for k in ("rows", "positives", "negatives", "ready")} == \
+        {"rows": 0, "positives": 0, "negatives": 0, "ready": False}
     _write_rows(26, 4)
     assert predict.history_status()["ready"] is False  # too few negatives
+    assert "Needs both" in predict.history_status()["status"]
     _write_rows(20, 9)
     assert predict.history_status()["ready"] is False  # too few rows
+    assert "learning" in predict.history_status()["status"]
     _write_rows(25, 5)
-    assert predict.history_status() == {"rows": 30, "positives": 25, "negatives": 5, "ready": True}
+    assert predict.history_status() == {"rows": 30, "positives": 25, "negatives": 5, "ready": True,
+                                        "status": "ready"}
 
 
 def test_predict_none_when_not_ready_or_unavailable(monkeypatch):
@@ -202,6 +207,42 @@ def test_make_plan_attaches_probabilities(demo, monkeypatch):
     assert "off" in plan2.scan_stats["predictor"]
 
 
+def test_scores_set_reasons_and_never_change_ticks(demo, monkeypatch):
+    root, _ = demo
+    before, _ = service.make_plan(root, model=None, ocr=False)
+    ticks = {p.rel_path: p.approved for p in before.proposals}
+    moves = sorted(p.rel_path for p in before.proposals if p.action == "move")
+    score = {rel: (0.2, 0.7, 0.95)[i % 3] for i, rel in enumerate(moves)}
+    calls = []
+    monkeypatch.setattr(predict, "available", lambda: (True, "ok"))
+    monkeypatch.setattr(predict, "predict_accept", lambda plan: calls.append("scored") or score)
+    stages = []
+    plan, _ = service.make_plan(root, model=None, ocr=False, on_stage=lambda s: stages.append(s) or calls.append(s))
+    assert stages == [service.PREDICT_STAGE] and calls == [service.PREDICT_STAGE, "scored"]
+    by = {p.rel_path: p for p in plan.proposals}
+    for rel, prob in score.items():
+        r = by[rel].reasons
+        pct = round(prob * 100)
+        if prob == 0.2:
+            assert f"you often change moves like this ({pct}%) — check it" in r
+        elif prob == 0.7:
+            assert f"not sure whether you'd accept this ({pct}%)" in r
+        else:
+            assert f"you usually accept moves like this ({pct}%)" in r
+        assert sum("(%d%%)" % pct in x for x in r) == 1
+    assert {p.rel_path: p.approved for p in plan.proposals} == ticks  # scores never tick or untick
+
+
+def test_no_stage_when_predictor_cannot_run(demo, monkeypatch):
+    root, _ = demo
+    stages = []
+    monkeypatch.setattr(predict, "available", lambda: (False, "TabPFN is not installed"))
+    service.make_plan(root, model=None, ocr=False, on_stage=stages.append)
+    settings.save_settings({"use_predictor": False})
+    service.make_plan(root, model=None, ocr=False, on_stage=stages.append)
+    assert stages == []
+
+
 def test_trusted_honours_accept_prob():
     s = settings.defaults()
     p = prop("a.exe")
@@ -218,6 +259,137 @@ def test_old_plans_without_accept_prob_load():
     d = prop("a.exe").to_dict()
     del d["accept_prob"]
     assert Proposal.from_dict(d).accept_prob is None
+
+
+# --------------------------------------------------------------------------- honest labels
+
+def auto_plan(props, pid="auto1"):
+    pl = plan_of(props, pid)
+    pl.scan_stats["auto"] = {"run_id": "r1", "moved": []}
+    return pl
+
+
+def raw_rows():
+    return [json.loads(l) for l in reviewlog.log_path().read_text(encoding="utf-8").splitlines() if l.strip()]
+
+
+def test_auto_review_untouched_rows_not_logged():
+    ps = [prop(f"f{i}.exe") for i in range(10)]
+    approved = {"f0.exe", "f1.exe"}
+    assert reviewlog.record(auto_plan(ps), report(approved), approved, {}) == 2
+    assert [r["label"] for r in reviewlog.load_rows()] == [1, 1]
+    assert {r["source"] for r in raw_rows()} == {"review"} and all(r["v"] == 2 for r in raw_rows())
+    # An explicit "keep" is still a decision.
+    reviewlog.reset()
+    assert reviewlog.record(auto_plan(ps, "auto2"), report(set()), set(), {"f3.exe": "keep"}) == 1
+    (row,) = raw_rows()
+    assert row["label"] == 0 and row["outcome"] == "keep"
+    # Outside an automatic run's review list, unticking still counts as a rejection.
+    assert reviewlog.record(plan_of(ps[:2], "manual"), report(set()), set(), {}) == 2
+
+
+def test_override_records_outcome():
+    ps = [prop("a.pdf", "documents"), prop("b.exe"), prop("c.zip", "archives")]
+    approved = {"a.pdf", "b.exe"}
+    reviewlog.record(plan_of(ps), report(approved), approved, {"a.pdf": "finance"})
+    out = {r["features"]["ext"]: (r["label"], r["outcome"]) for r in raw_rows()}
+    assert out == {".pdf": (0, "finance"), ".exe": (1, "installers"), ".zip": (0, "keep")}
+    # Sent to another folder from an automatic run's review list: also a lesson.
+    reviewlog.reset()
+    pl = auto_plan([prop("d.pdf", "documents")])
+    reviewlog.record(pl, report({"d.pdf"}), {"d.pdf"}, {"d.pdf": "finance"})
+    assert [(r["label"], r["outcome"]) for r in raw_rows()] == [(0, "finance")]
+
+
+@pytest.mark.parametrize("rel,new_name,renamed", [
+    ("report.pdf", "report (2).pdf", False),
+    ("report (2).pdf", None, False),
+    ("report (2).pdf", "report (2) (3).pdf", False),
+    ("scan001.pdf", "Invoice 2026.pdf", True),
+    ("scan001.pdf", "Invoice 2026 (2).pdf", True),
+])
+def test_collision_suffix_not_rename(rel, new_name, renamed):
+    p = prop(rel, "documents", new_name=new_name)
+    assert reviewlog.features(p, plan_of([p]))["renamed"] is renamed
+
+
+def test_single_class_window(monkeypatch):
+    pytest.importorskip("numpy")  # part of the optional [predict] extra
+    monkeypatch.setattr(predict, "MAX_TRAIN_ROWS", 40)
+    with open(reviewlog.log_path(), "w", encoding="utf-8") as f:
+        for i in range(80):  # the older half is mixed, the newest 40 are all accepted
+            label = int(i % 2 == 0) if i < 40 else 1
+            feats = reviewlog.features(prop(f"x{i}.exe"), plan_of([]))
+            f.write(json.dumps({"plan_id": "p", "features": feats, "label": label}) + "\n")
+    st = predict.history_status()
+    assert st["rows"] == 40 and st["negatives"] == 0 and st["ready"] is False
+    monkeypatch.setattr(predict, "available", lambda: (True, "ok"))
+
+    def no_fit():
+        raise AssertionError("must not fit on one class")
+    monkeypatch.setattr(predict, "_make_classifier", no_fit)
+    monkeypatch.setattr(predict, "_model_cache", None)
+    assert predict.predict_accept(plan_of([prop("a.exe")])) is None
+    assert "Needs both" in predict.status() and "40 accepted, 0 changed" in predict.status()
+    # Called directly (scripts/predictor_eval.py), one class also gives None, not a ValueError.
+    rows = reviewlog.load_rows()[-40:]
+    assert predict.fit_predict_rows(rows, [rows[0]["features"]]) is None
+    assert "Needs both" in predict.status()
+
+
+def test_v1_rows_still_load():
+    feats = reviewlog.features(prop("a.exe"), plan_of([]))
+    with open(reviewlog.log_path(), "w", encoding="utf-8") as f:
+        f.write(json.dumps({"v": 1, "plan_id": "old", "features": {**feats, "renamed": True}, "label": 0}) + "\n")
+        f.write(json.dumps({"v": 1, "plan_id": "old", "features": feats, "label": 1}) + "\n")
+    reviewlog.record(plan_of([prop("b.zip", "archives")], "new"), report({"b.zip"}), {"b.zip"}, {})
+    rows = reviewlog.load_rows()
+    assert [(r["plan_id"], r["label"]) for r in rows] == [("old", 0), ("old", 1), ("new", 1)]
+    assert rows[0]["features"]["renamed"] is True
+
+
+# --------------------------------------------------------------------------- automatic runs
+
+RESTORED = SimpleNamespace(results=[SimpleNamespace(status="restored")])
+
+
+def test_auto_rows_capped_and_relabelled_by_undo():
+    ps = [prop(f"i{i}.exe") for i in range(5)] + [prop(f"z{i}.zip", "archives") for i in range(2)] \
+        + [prop("dup.exe", duplicate_of="i0.exe"), prop("left.exe")]
+    moved = {p.rel_path for p in ps} - {"left.exe"}
+    assert reviewlog.record_auto(plan_of(ps), moved, "run1") == 5  # 3 of the 5 .exe + 2 .zip
+    assert reviewlog.record_auto(plan_of(ps), moved, "run1") == 0  # once per run
+    rows = raw_rows()
+    assert all(r["source"] == "auto" and r["run_id"] == "run1" and r["label"] == 1 for r in rows)
+    assert {r["outcome"] for r in rows} == {"installers", "archives"}
+    assert reviewlog.load_rows() == []  # too recent: the user may still undo
+    later = rows[0]["ts"] + 4 * 86400
+    assert [r["label"] for r in reviewlog.load_rows(now=later)] == [1] * 5
+    assert reviewlog.mark_undone("other", RESTORED) is False  # no rows for that run
+    assert reviewlog.mark_undone("run1", SimpleNamespace(results=[])) is False  # nothing came back
+    assert reviewlog.mark_undone("run1", RESTORED) is True
+    assert reviewlog.mark_undone("run1", RESTORED) is False
+    assert [r["label"] for r in reviewlog.load_rows(now=later)] == [0] * 5
+    assert [r["label"] for r in reviewlog.load_rows()] == [0] * 5  # an undo is final, even if recent
+    assert sum(1 for r in raw_rows() if "undo_run" in r) == 1
+    reviewlog.reset()  # "Forget everything" also drops auto rows and markers
+    assert not reviewlog.log_path().exists() and reviewlog.load_rows(now=later) == []
+
+
+def test_recent_auto_rows_skipped():
+    reviewlog.record_auto(plan_of([prop("a.exe")]), {"a.exe"}, "run1")
+    reviewlog.record(plan_of([prop("b.zip", "archives")], "p2"), report({"b.zip"}), {"b.zip"}, {})
+    ts = raw_rows()[0]["ts"]
+    assert [r["features"]["ext"] for r in reviewlog.load_rows(now=ts + 2 * 86400)] == [".zip"]
+    assert [r["features"]["ext"] for r in reviewlog.load_rows(now=ts + 3 * 86400)] == [".exe", ".zip"]
+    # Forged auto rows without a usable run id or time never load.
+    feats = raw_rows()[0]["features"]
+    with open(reviewlog.log_path(), "a", encoding="utf-8") as f:
+        for bad in ({"run_id": 5, "ts": 1}, {"run_id": "x", "ts": "old"}, {"run_id": "x", "ts": True},
+                    {"run_id": "x"}):
+            f.write(json.dumps({"source": "auto", "features": feats, "label": 1, **bad}) + "\n")
+        f.write(json.dumps({"undo_run": 7}) + "\n")
+    assert len(reviewlog.load_rows(now=ts + 30 * 86400)) == 2
 
 
 # --------------------------------------------------------------------------- real TabPFN

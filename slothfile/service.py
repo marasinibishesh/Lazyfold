@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import Callable
 
 from .engine import make_classifier
-from .executor import RunReport, apply_plan, incomplete_runs, recover, run_status, undo_run
+from . import executor
+from .executor import RunReport, apply_plan, incomplete_runs, recover, run_status
 from .journal import iter_runs, plans_dir
 from .models import FileRecord, Plan
 from .pathsafe import UnsafePath, norm_key, sanitize_component, sanitize_stem
@@ -18,13 +19,16 @@ from .rules import CATEGORIES, Decision
 from .scanner import scan_folder
 
 Progress = Callable[[int, int, str], None]
+PREDICT_STAGE = "Checking your past reviews (TabPFN)…"
 
 
 def make_plan(folder: str | Path, *, model: str | None = None, threshold: float = DEFAULT_THRESHOLD,
               rename: bool = True, progress: Progress | None = None,
-              options: PlanOptions | None = None, ocr: bool | None = None) -> tuple[Plan, str]:
+              options: PlanOptions | None = None, ocr: bool | None = None,
+              on_stage: Callable[[str], None] | None = None) -> tuple[Plan, str]:
     """Scan (read-only) and plan. Optional behaviours come from the user's
-    settings unless `options`/`ocr` are given explicitly."""
+    settings unless `options`/`ocr` are given explicitly. `on_stage(label)`
+    is told about slow steps after the per-file pass (the predictor)."""
     root = Path(os.path.abspath(folder))
     if options is None or ocr is None:
         from .settings import load_settings
@@ -49,14 +53,15 @@ def make_plan(folder: str | Path, *, model: str | None = None, threshold: float 
     if getattr(classifier, "calls", 0):
         plan.scan_stats["model_calls"] = classifier.calls
         plan.scan_stats["model_seconds"] = round(classifier.seconds, 1)
-    _attach_predictions(plan)
+    _attach_predictions(plan, on_stage)
     save_plan(plan)
     return plan, plan.scan_stats["model_status"]
 
 
-def _attach_predictions(plan: Plan) -> None:
+def _attach_predictions(plan: Plan, on_stage: Callable[[str], None] | None = None) -> None:
     """Score moves with the optional approval predictor (TabPFN, see
-    predict.py). Any failure just leaves the plan unscored."""
+    predict.py). Any failure just leaves the plan unscored. Scores only add
+    reasons for display; they never tick or untick anything."""
     try:
         from . import predict
         from .settings import load_settings
@@ -67,6 +72,8 @@ def _attach_predictions(plan: Plan) -> None:
         if not ok:
             plan.scan_stats["predictor"] = why
             return
+        if on_stage:
+            on_stage(PREDICT_STAGE)
         probs = predict.predict_accept(plan)
         plan.scan_stats["predictor"] = predict.status()
         for p in plan.proposals:
@@ -79,6 +86,8 @@ def _attach_predictions(plan: Plan) -> None:
                 p.reasons = p.reasons + [f"you usually accept moves like this ({pct}%)"]
             elif prob < 0.5:
                 p.reasons = p.reasons + [f"you often change moves like this ({pct}%) — check it"]
+            else:
+                p.reasons = p.reasons + [f"not sure whether you'd accept this ({pct}%)"]
     except Exception as e:  # a hint must never stop a plan
         plan.scan_stats["predictor"] = f"predictor error ({type(e).__name__})"
 
@@ -218,6 +227,21 @@ def execute(plan_id: str, approved: set[str] | None = None, renames: dict[str, s
         if load_settings().get("use_predictor"):  # opting out also stops collecting history
             reviewlog.record(original, report, approved, overrides, renames)
     except Exception:  # the review log feeds a hint; it must never block a run
+        pass
+    return report
+
+
+def undo_run(run_id: str) -> RunReport:
+    """Undo a run (executor.undo_run), then note it in the review log so an
+    undone automatic tidy teaches the predictor to hold such files back.
+    The note comes after the real undo and can never fail it."""
+    report = executor.undo_run(run_id)
+    try:
+        from . import reviewlog
+        from .settings import load_settings
+        if load_settings().get("use_predictor"):  # opting out also stops collecting history
+            reviewlog.mark_undone(run_id, report)
+    except Exception:  # the review log feeds a hint; it must never block an undo
         pass
     return report
 

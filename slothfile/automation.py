@@ -189,27 +189,42 @@ class _RunLock:
                 pass
 
 
-def trusted(p, settings: dict) -> bool:
-    """Would this proposal be moved without review? Model-influenced
-    decisions always wait, whatever the category, and so do moves the
-    approval predictor thinks this user would probably change."""
-    prob = getattr(p, "accept_prob", None)
-    if prob is not None and prob < settings["auto_min_confidence"]:
-        return False
+def _rules_trust(p, settings: dict) -> bool:
+    """The rule checks alone. Model-influenced decisions always wait,
+    whatever the category."""
     return (p.action == "move" and p.category in settings["auto_approve_categories"]
             and p.confidence >= settings["auto_min_confidence"] and p.engine == "rules")
 
 
-def _message(folder: Path, moved: int, waiting: int) -> tuple[str, str]:
+def _held_by_predictor(p, settings: dict) -> bool:
+    """The rules would move it, but the approval predictor thinks this user
+    would probably change it. The predictor can only veto, never add."""
+    prob = getattr(p, "accept_prob", None)
+    return prob is not None and prob < settings["auto_min_accept_prob"] and _rules_trust(p, settings)
+
+
+HELD_REASON = "Held back: you usually change files like these"
+
+
+def trusted(p, settings: dict) -> bool:
+    """Would this proposal be moved without review? Only if the rules trust
+    it and the approval predictor (when it gave a score) does not hold it
+    back. No score means the rules decide alone."""
+    return _rules_trust(p, settings) and not _held_by_predictor(p, settings)
+
+
+def _message(folder: Path, moved: int, waiting: int, held: int = 0) -> tuple[str, str]:
     name = folder.name or str(folder)
     files = lambda n: f"{n} file{'s' if n != 1 else ''}"  # noqa: E731
+    why = f" ({held} held back because you usually change files like these)" if held > 0 else ""
     if moved and waiting:
         body = (f"SlothFile tidied {files(moved)} in {name}. {files(waiting)} "
-                f"{'is' if waiting == 1 else 'are'} waiting for your review - open SlothFile.")
+                f"{'is' if waiting == 1 else 'are'} waiting for your review{why} - open SlothFile.")
     elif moved:
         body = f"SlothFile tidied {files(moved)} in {name}. You can undo this in SlothFile."
     else:
-        body = f"{files(waiting)} in {name} {'is' if waiting == 1 else 'are'} ready for your review - open SlothFile."
+        body = (f"{files(waiting)} in {name} {'is' if waiting == 1 else 'are'} "
+                f"ready for your review{why} - open SlothFile.")
     return "SlothFile", body
 
 
@@ -234,6 +249,8 @@ def auto_run(folder: str | Path, *, apply_trusted: bool = True, settings: dict |
             return out
         out["plan_id"] = plan.plan_id
         approved = {p.rel_path for p in plan.proposals if trusted(p, settings)} if apply_trusted else set()
+        held_paths = {p.rel_path for p in plan.proposals if _held_by_predictor(p, settings)} if apply_trusted else set()
+        held = len(held_paths)
         moved_paths: set[str] = set()
         needs_recovery = False
         if approved:
@@ -252,12 +269,22 @@ def auto_run(folder: str | Path, *, apply_trusted: bool = True, settings: dict |
                 moved_paths = {r.src for r in report.results if r.status == "moved"}
                 out["moved"] = len(moved_paths)
                 out["skipped"] = report.count("skipped") + report.count("failed")
+                if moved_paths and settings.get("use_predictor"):
+                    try:
+                        from . import reviewlog
+                        reviewlog.record_auto(plan, moved_paths, report.run_id)
+                    except Exception:  # noqa: BLE001 - the review log feeds a hint; never block a run
+                        log.exception("could not log the automatic moves")
         # The saved plan becomes the review list: files already filed are
         # dropped, and nothing in it stays pre-approved.
         plan.proposals = [p for p in plan.proposals if p.rel_path not in moved_paths]
         for p in plan.proposals:
             p.approved = False
-        plan.scan_stats["auto"] = {"run_id": out["run_id"], "moved": sorted(moved_paths)}
+            if p.rel_path in held_paths:  # display only: the review lists these first
+                p.reasons = p.reasons + [HELD_REASON]
+        plan.scan_stats["auto"] = {"run_id": out["run_id"], "moved": sorted(moved_paths),
+                                   "held_by_predictor": held, "held_back": sorted(held_paths)}
+        out["held_by_predictor"] = held
         service.save_plan(plan)
         out["waiting"] = sum(1 for p in plan.proposals if p.action == "move")
         if out["waiting"]:
@@ -274,7 +301,7 @@ def auto_run(folder: str | Path, *, apply_trusted: bool = True, settings: dict |
             out["notified"] = notify_fn("SlothFile needs your attention", body)
             return out
         if out["moved"] + out["waiting"] >= max(1, settings["notify_min_files"]):
-            out["notified"] = notify_fn(*_message(root, out["moved"], out["waiting"]))
+            out["notified"] = notify_fn(*_message(root, out["moved"], out["waiting"], held))
     return out
 
 

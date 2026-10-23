@@ -24,6 +24,10 @@ DEFAULTS: dict[str, Any] = {
     "auto_approve_categories": ["installers", "archives", "screenshots", "images", "videos", "audio",
                                 "fonts", "torrents", "ebooks", "duplicates"],
     "auto_min_confidence": 0.9,
+    # The automatic tidy also waits when the approval predictor (TabPFN) puts
+    # the chance this user accepts a move below this. It can only hold moves
+    # back, never add one.
+    "auto_min_accept_prob": 0.85,
     "photos_by_date": True,
     "unpack_zip_archives": False,
     "recycle_old_installers_days": 90,
@@ -60,6 +64,10 @@ def _check(key: str, value: Any) -> Any:
         # bool is an int subclass; True must not silently mean 1.0.
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.0 <= value <= 1.0:
             raise ValueError("auto_min_confidence must be a number between 0 and 1")
+        return float(value)
+    if key == "auto_min_accept_prob":
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.5 <= value <= 0.99:
+            raise ValueError("auto_min_accept_prob must be a number between 0.5 and 0.99")
         return float(value)
     if key in ("recycle_old_installers_days", "notify_min_files"):
         if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 100000:

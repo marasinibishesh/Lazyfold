@@ -6,6 +6,12 @@ folder). The approval predictor (predict.py) learns from it. Unlike
 learning.py, which turns repeated corrections into hard rules, this keeps the
 raw history so a statistical model can pick up softer patterns.
 
+Since v2 a row also says where it came from ("source": "review" for the review
+screen, "auto" for a move the automatic tidy made) and where the file ended up
+("outcome": a category key or "keep", never a path). Automatic moves count as
+accepted once they are a few days old; undoing their run (an {"undo_run": id}
+marker line) turns them into rejections.
+
 The file lives in state_dir()/reviews.jsonl and is treated as untrusted on
 every read: torn, garbage or wrongly typed lines are skipped, never trusted.
 """
@@ -15,16 +21,22 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from .journal import state_dir
 from .models import Plan
+from .rules import CATEGORIES
 
 MAX_ROWS = 5000
-_VERSION = 1
+_VERSION = 2
+AUTO_PER_GROUP = 3  # rows per (ext, category, host) from one automatic run
+AUTO_SETTLE_DAYS = 3  # an automatic move counts as kept only after this
+_COLLISION = re.compile(r" \(\d+\)$")  # "name (2)": the planner avoiding a clash, not a rename
 
 # name -> type of every feature column, in model order.
 FEATURES: dict[str, type] = {
@@ -50,6 +62,14 @@ def _plan_time(plan: Plan) -> datetime | None:
         return None
 
 
+def _renamed(p: Any) -> bool:
+    """Did the plan suggest a real new name? A collision suffix alone is not one."""
+    if not p.new_name:
+        return False
+    stem, ext = os.path.splitext(p.new_name)
+    return _COLLISION.sub("", stem) + ext != os.path.basename(p.rel_path)
+
+
 def features(p: Any, plan: Plan) -> dict[str, Any]:
     """Model features of one proposal. Everything comes from the proposal and
     its fingerprint, so a plan can be scored before anything moves."""
@@ -66,7 +86,7 @@ def features(p: Any, plan: Plan) -> dict[str, Any]:
         "category": p.category or "",
         "confidence": round(float(p.confidence), 4),
         "engine": p.engine or "",
-        "renamed": bool(p.new_name),
+        "renamed": _renamed(p),
         "source_host_known": bool(host),
         "source_host": host,
         "log2_size": round(math.log2(size + 1), 3),
@@ -105,30 +125,67 @@ def _clean(row: Any) -> dict[str, Any] | None:
     return {"plan_id": pid, "features": out, "label": row["label"]}
 
 
-def load_rows() -> list[dict[str, Any]]:
-    """Valid rows, oldest first (at most MAX_ROWS)."""
+def _read_objects() -> list[Any]:
+    """Every parseable JSON line of the log, oldest first."""
     try:
         data = log_path().read_bytes()
     except OSError:
         return []
-    rows = []
+    out = []
     for line in data.split(b"\n"):
         line = line.strip()
         if not line:
             continue
         try:
-            row = _clean(json.loads(line.decode("utf-8")))
+            out.append(json.loads(line.decode("utf-8")))
         except (UnicodeDecodeError, ValueError, RecursionError, ArithmeticError):
             continue
-        if row:
-            rows.append(row)
+    return out
+
+
+def _undo_marker(obj: Any) -> str | None:
+    """The run id of an {"undo_run": id} marker line, else None."""
+    if isinstance(obj, dict) and "label" not in obj and isinstance(obj.get("undo_run"), str):
+        return obj["undo_run"] or None
+    return None
+
+
+def load_rows(now: float | None = None) -> list[dict[str, Any]]:
+    """Valid rows, oldest first (at most MAX_ROWS). Rows from an automatic run
+    become label 0 if that run was undone, and are left out while younger
+    than AUTO_SETTLE_DAYS (the user may still undo them)."""
+    objs = _read_objects()
+    undone = {m for m in map(_undo_marker, objs) if m}
+    now = time.time() if now is None else now
+    rows = []
+    for obj in objs:
+        if _undo_marker(obj):
+            continue  # a marker, not a row
+        row = _clean(obj)
+        if not row:
+            continue
+        if obj.get("source") == "auto":
+            run_id, ts = obj.get("run_id"), obj.get("ts")
+            if not isinstance(run_id, str) or isinstance(ts, bool) or not isinstance(ts, (int, float)):
+                continue
+            if run_id in undone:
+                row["label"] = 0  # the user took the whole run back
+            elif not now - ts >= AUTO_SETTLE_DAYS * 86400:  # also catches NaN
+                continue  # too recent to count as kept
+        rows.append(row)
     return rows[-MAX_ROWS:]
 
 
 def _label(p: Any, moved: set[str], ticked: set[str], overrides: dict[str, str],
-           renames: dict[str, str] | None = None) -> int | None:
+           renames: dict[str, str] | None = None, auto_review: bool = False) -> int | None:
     choice = overrides.get(p.rel_path)
-    if choice == "keep" or p.rel_path not in ticked:
+    if choice == "keep":
+        return 0
+    if p.rel_path not in ticked:
+        # An automatic run's review list starts all unticked, so leaving a row
+        # alone there is not a decision (picking another folder still is).
+        if auto_review and not choice:
+            return None
         return 0
     if choice and choice != p.category:
         return 0  # moved, but the user picked another folder
@@ -142,6 +199,40 @@ def _label(p: Any, moved: set[str], ticked: set[str], overrides: dict[str, str],
     return None  # ticked but skipped/failed: says nothing about the user
 
 
+def _outcome(p: Any, ticked: set[str], overrides: dict[str, str]) -> str | None:
+    """Where the user sent the file: a category key or "keep", never a path."""
+    choice = overrides.get(p.rel_path)
+    if choice == "keep" or (p.rel_path not in ticked and not choice):
+        return "keep"
+    key = choice or p.category
+    return key if key in CATEGORIES else None
+
+
+def _seen() -> set[str]:
+    try:
+        return set(_seen_path().read_text(encoding="utf-8").split())
+    except OSError:
+        return set()
+
+
+def _mark_seen(key: str) -> None:
+    with open(_seen_path(), "a", encoding="utf-8") as f:
+        f.write(key + "\n")
+
+
+def _append(lines: list[str]) -> None:
+    path = log_path()
+    with open(path, "ab") as f:
+        # A torn last line (crash mid-write) must not swallow our first row.
+        prefix = b"\n" if f.tell() and not _ends_with_newline(path) else b""
+        f.write(prefix + ("\n".join(lines) + "\n").encode("utf-8"))
+    _cap(path)
+
+
+def _ok_run_id(run_id: Any) -> bool:
+    return isinstance(run_id, str) and bool(run_id) and not any(c.isspace() for c in run_id)
+
+
 def record(plan: Plan, report: Any, approved: set[str] | None, overrides: dict[str, str],
            renames: dict[str, str] | None = None) -> int:
     """Log one row per reviewed move of `plan` (the plan as proposed, before
@@ -149,35 +240,80 @@ def record(plan: Plan, report: Any, approved: set[str] | None, overrides: dict[s
     near-duplicates are not lessons, and each plan is recorded only once so a
     retried request cannot double-count."""
     overrides = overrides or {}
-    seen_file = _seen_path()
-    try:
-        seen = set(seen_file.read_text(encoding="utf-8").split())
-    except OSError:
-        seen = set()
-    if plan.plan_id in seen:
+    if plan.plan_id in _seen():
         return 0
+    # The review list an automatic run left behind (automation.auto_run).
+    auto_review = bool((plan.scan_stats or {}).get("auto"))
     moved = {r.src for r in report.results if r.status == "moved"}
     ticked = approved if approved is not None else {p.rel_path for p in plan.proposals if p.approved}
     lines = []
     for p in plan.proposals:
         if p.action != "move" or p.duplicate_of or p.near_duplicate:
             continue
-        label = _label(p, moved, ticked, overrides, renames)
+        label = _label(p, moved, ticked, overrides, renames, auto_review)
         if label is None:
             continue
-        lines.append(json.dumps({"v": _VERSION, "plan_id": plan.plan_id, "features": features(p, plan),
-                                 "label": label}, ensure_ascii=False))
-    with open(seen_file, "a", encoding="utf-8") as f:
-        f.write(plan.plan_id + "\n")
+        lines.append(json.dumps({"v": _VERSION, "source": "review", "plan_id": plan.plan_id,
+                                 "features": features(p, plan), "label": label,
+                                 "outcome": _outcome(p, ticked, overrides)}, ensure_ascii=False))
+    _mark_seen(plan.plan_id)
     if not lines:
         return 0
-    path = log_path()
-    with open(path, "ab") as f:
-        # A torn last line (crash mid-write) must not swallow our first row.
-        prefix = b"\n" if f.tell() and not _ends_with_newline(path) else b""
-        f.write(prefix + ("\n".join(lines) + "\n").encode("utf-8"))
-    _cap(path)
+    _append(lines)
     return len(lines)
+
+
+def record_auto(plan: Plan, moved_paths: set[str], run_id: str) -> int:
+    """Log the moves automatic run `run_id` made as kept (label 1), with the
+    features they had when they moved. At most AUTO_PER_GROUP rows per (ext,
+    category, host), so one big run cannot flood the training window; each
+    run is recorded once. load_rows() counts them only after AUTO_SETTLE_DAYS,
+    and as rejections once the run is undone (mark_undone)."""
+    if not _ok_run_id(run_id):
+        return 0
+    key = "auto:" + run_id
+    if key in _seen():
+        return 0
+    groups: dict[tuple[str, str, str], int] = {}
+    ts = time.time()
+    lines = []
+    for p in plan.proposals:
+        if p.rel_path not in moved_paths or p.action != "move" or p.duplicate_of or p.near_duplicate:
+            continue
+        f = features(p, plan)
+        group = (f["ext"], f["category"], f["source_host"])
+        if groups.get(group, 0) >= AUTO_PER_GROUP:
+            continue
+        groups[group] = groups.get(group, 0) + 1
+        lines.append(json.dumps({"v": _VERSION, "source": "auto", "run_id": run_id, "plan_id": plan.plan_id,
+                                 "ts": ts, "features": f, "label": 1,
+                                 "outcome": p.category if p.category in CATEGORIES else None},
+                                ensure_ascii=False))
+    _mark_seen(key)
+    if not lines:
+        return 0
+    _append(lines)
+    return len(lines)
+
+
+def mark_undone(run_id: str, report: Any) -> bool:
+    """Note that the user undid automatic run `run_id`, so its rows count as
+    rejections. Written once per run, only if the undo really put something
+    back and the run has rows in the log. True if a marker was written."""
+    if not _ok_run_id(run_id):
+        return False
+    if not any(getattr(r, "status", None) == "restored" for r in getattr(report, "results", [])):
+        return False
+    key = "undo:" + run_id
+    if key in _seen():
+        return False
+    objs = _read_objects()
+    if not any(isinstance(o, dict) and o.get("source") == "auto" and o.get("run_id") == run_id for o in objs):
+        return False  # not an automatic run we learned from
+    if run_id not in {_undo_marker(o) for o in objs}:
+        _append([json.dumps({"v": _VERSION, "undo_run": run_id})])
+    _mark_seen(key)
+    return True
 
 
 def _ends_with_newline(path: Path) -> bool:

@@ -73,8 +73,8 @@ def test_frozen_classifier_uses_bundled_model_path(frozen, monkeypatch):
 def test_info_shape(frozen):
     info = predict.info()
     assert set(info) == {"available", "detail", "weights", "bundled", "history", "min_rows",
-                         "min_per_class", "last_run"}
-    assert info["bundled"] is False and info["history"]["rows"] == 0
+                         "min_per_class", "last_run", "backtest"}
+    assert info["bundled"] is False and info["history"]["rows"] == 0 and info["backtest"] is None
 
 
 def test_auc():
