@@ -393,6 +393,7 @@ def test_mac_installers_suggested_for_recycle_only_on_mac(tmp_path, monkeypatch)
     write_old(root / "Firefox 120.dmg", DMG, days=200)
     records, stats = scan_folder(root)
     opts = dict(recycle_old_installers_days=90, installed=frozenset())
+    monkeypatch.setattr(sys, "platform", "win32")
     plan = build_plan(root, records, scan_stats=stats, options=PlanOptions(**opts))
     assert plan.proposals[0].action == "move"  # Windows behaviour unchanged
     monkeypatch.setattr(sys, "platform", "darwin")

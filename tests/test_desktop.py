@@ -33,6 +33,7 @@ def test_source_checkout_uses_python_module(monkeypatch):
     assert automation.launch_prefix().endswith("-m slothfile")
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_menu_from_installed_exe_is_recognised_as_ours(monkeypatch, tmp_path):
     app = fake_frozen(monkeypatch, tmp_path)
     wr = __import__("winreg")

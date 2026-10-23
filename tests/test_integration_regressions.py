@@ -1,5 +1,7 @@
 """Regression tests for defects found when reviewing how the features fit together (I0-I15)."""
 
+import sys
+
 import io
 import json
 import os
@@ -105,6 +107,7 @@ def test_corrupt_zip_leaves_no_empty_folders_after_undo(tmp_path):
 
 
 # I5: locked unpacked file -> reported, zip stays, a retry finishes the job
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_locked_unpacked_file_is_reported_and_retryable(tmp_path):
     root = tmp_path / "dl"
     write_old(root / "proj.zip", make_zip({"a.txt": b"A", "b.txt": b"B"}))
@@ -153,6 +156,7 @@ def test_recycle_refuses_renamed_exe_with_wrong_magic(tmp_path, fake_bin):
 
 
 # I4: the bin returns a different same-named file -> it goes back, honestly reported
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_undo_recycle_returns_wrong_copy_to_bin(tmp_path, monkeypatch, fake_bin):
     root = tmp_path / "dl"
     write_old(root / "Tool-setup.exe", FAKE_EXE + b"v1", days=200)

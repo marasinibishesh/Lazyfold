@@ -1,5 +1,7 @@
 """Regression tests for the desktop/installer/predictor review findings (D0-D9)."""
 
+import sys
+
 import json
 import os
 import threading
@@ -12,6 +14,7 @@ from slothfile import automation, desktop, predict, reviewlog, settings
 
 
 # D1: the running app announces itself so the uninstaller can ask to close it
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_app_mutex_is_held(monkeypatch):
     import ctypes
     monkeypatch.setattr(desktop, "_mutex", None)

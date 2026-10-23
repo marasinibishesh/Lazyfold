@@ -235,6 +235,7 @@ def test_ocr_scales_down_oversized_image(tmp_path):
     assert "oversized" in out.get(str(p), "").casefold()
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_ocr_timeout_returns_empty(tmp_path, monkeypatch):
     def boom(*a, **kw):
         raise subprocess.TimeoutExpired(cmd="powershell", timeout=1)
@@ -244,6 +245,7 @@ def test_ocr_timeout_returns_empty(tmp_path, monkeypatch):
     assert ocr.ocr_images([tmp_path / "x.png"], timeout=1) == {}
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_ocr_command_never_uses_shell(tmp_path, monkeypatch):
     seen = {}
 
@@ -262,6 +264,7 @@ def test_ocr_command_never_uses_shell(tmp_path, monkeypatch):
     assert seen["cmd"][seen["cmd"].index("-File") + 1].endswith("ocr.ps1")
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_ocr_parses_json_lines_and_caps_text(tmp_path, monkeypatch):
     p = tmp_path / "a.png"
     q = tmp_path / "b.png"

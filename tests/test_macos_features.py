@@ -417,7 +417,8 @@ def test_mac_root_refusals_inside_home(mac, rel, why):
     assert why in cleanup._root_refusal(p)
 
 
-def test_mac_root_refusals_outside_home(mac, tmp_path):
+def test_mac_root_refusals_outside_home(mac, tmp_path, monkeypatch):
+    monkeypatch.delenv("TMPDIR", raising=False)  # on a real Mac tmp_path is inside $TMPDIR, an allowed root
     assert cleanup._root_refusal(executor.canonical(tmp_path / "System" / "Library" / "Caches")) == \
         "outside your user folders"
     assert cleanup._root_refusal(executor.canonical(tmp_path)) is not None  # contains the home folder

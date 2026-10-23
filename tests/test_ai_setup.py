@@ -101,6 +101,7 @@ def line(**kw) -> bytes:
 
 # ---------- detection ----------
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_detection_order(no_ollama, monkeypatch, tmp_path):
     configured = touch(tmp_path / "custom" / "ollama.exe")
     on_path = touch(tmp_path / "path" / "ollama.exe")
@@ -126,6 +127,7 @@ def test_status_when_nothing_installed(no_ollama):
     assert "not installed" in st["message"]
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_status_installed_not_running(no_ollama):
     exe = touch(no_ollama / "Programs" / "Ollama" / "ollama.exe")
     st = ai_setup.status()
@@ -199,12 +201,14 @@ class FakeWinget:
         pass
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_winget_missing_message(monkeypatch):
     monkeypatch.setattr(ai_setup.shutil, "which", lambda name: None)
     with pytest.raises(RuntimeError, match=r"https://ollama\.com/download"):
         ai_setup.install_ollama()
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_winget_failure_is_readable(monkeypatch, no_ollama):
     monkeypatch.setattr(ai_setup.shutil, "which", lambda name: r"C:\fake\winget.exe" if name == "winget" else None)
     monkeypatch.setattr(ai_setup.subprocess, "Popen", lambda *a, **k: FakeWinget(b"No package found", 0x8A150014))
@@ -213,6 +217,7 @@ def test_winget_failure_is_readable(monkeypatch, no_ollama):
     assert "No package found" in str(ei.value) and "ollama.com/download" in str(ei.value)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_winget_success_reports_progress_and_redetects(monkeypatch, no_ollama):
     seen, calls = [], []
     monkeypatch.setattr(ai_setup.shutil, "which", lambda name: r"C:\fake\winget.exe" if name == "winget" else None)
@@ -233,6 +238,7 @@ def test_winget_success_reports_progress_and_redetects(monkeypatch, no_ollama):
     assert ("Downloading Ollama", 45.0) in seen and seen[-1] == ("Ollama installed", 100.0)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_winget_already_installed_counts_as_success(monkeypatch, no_ollama):
     monkeypatch.setattr(ai_setup.shutil, "which", lambda name: r"C:\fake\winget.exe" if name == "winget" else None)
     touch(no_ollama / "Programs" / "Ollama" / "ollama.exe")

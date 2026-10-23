@@ -507,6 +507,8 @@ def test_schedule_rejects_bad_time(tmp_path, fake_schtasks, at):
 def test_schedule_rejects_bad_day_and_long_command(tmp_path, fake_schtasks):
     with pytest.raises(ValueError):
         automation.schedule_weekly_summary("FUNDAY")
+    if sys.platform != "win32":
+        return  # the 261-character limit is Task Scheduler's (/TR); launchd has none
     deep = tmp_path / ("x" * 120) / ("y" * 120)
     deep.mkdir(parents=True)
     with pytest.raises(ValueError, match="at most 261"):
@@ -652,6 +654,7 @@ def test_run_alias_install_uninstall(test_base, home):
 # Regressions
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour")
 def test_schedule_refuses_percent_paths(tmp_path, fake_schtasks):
     # Task Scheduler expands %VAR% inside /TR, so such paths must be refused.
     folder = tmp_path / "a%USERNAME%b"
