@@ -13,7 +13,7 @@ Created by **[Bishesh Marasini](https://github.com/marasinibishesh)**.
 
 ## Partner technology
 
-SlothFile works like a small agent. The rules (and Gemma, if you turn it on) **propose** where each file should go. **TabPFN predicts** whether *you* would accept each proposal. SlothFile then **acts or asks you**.
+SlothFile works like a small agent. **TabPFN predicts** whether *you* would accept each proposed move, learning from your own past reviews. The proposals come from the built-in rules and, if you turn it on, **Gemma**. SlothFile then **acts or asks you**.
 
 ### 1. TabPFN by Prior Labs — predicts which moves you'd accept
 
@@ -89,8 +89,8 @@ Open **Automation** to tidy a folder every day, turn on the right-click menu ent
 
 Open **Settings** (bottom-left) to change the default folder, the theme (System / Light / Dark), and which features are on.
 
-- **Local AI (Gemma 4)** — optional. Reads documents to sort and name them better. Click **Set up** once: it installs [Ollama](https://ollama.com) (on a Mac through Homebrew, or it points you to Ollama's Mac download) and downloads Gemma 4 (about 4.3 GB). It runs entirely on your PC and can only *suggest*; you still approve every move.
 - **Smart predictions (TabPFN)** — in the Full edition. Turn it on or off, choose how careful the automatic tidy is, and click **Check now** to see how well it predicts your choices (see [Partner technology](#partner-technology)).
+- **Local AI (Gemma 4)** — optional. Reads documents to sort and name them better. Click **Set up** once: it installs [Ollama](https://ollama.com) (on a Mac through Homebrew, or it points you to Ollama's Mac download) and downloads Gemma 4 (about 4.3 GB). It runs entirely on your PC and can only *suggest*; you still approve every move.
 - **Privacy & learning** — see or forget what SlothFile learned from your corrections.
 
 ![Settings](docs/screenshots/settings.png)
