@@ -11,6 +11,7 @@ import hashlib
 import os
 import re
 import stat
+import sys
 import tempfile
 import time
 from collections import defaultdict
@@ -27,6 +28,8 @@ MAX_FULL_HASH = 2 * 1024**3
 PARTIAL_DOWNLOAD_EXTS = {".crdownload", ".part", ".partial", ".download", ".opdownload",
                          ".tmp", ".!ut", ".!qb", ".aria2"}
 SYSTEM_NAMES = {"desktop.ini", "thumbs.db", ".ds_store", "ehthumbs.db"}
+MAC_SYSTEM_NAMES = {"icon\r"}  # Finder's custom-folder-icon file
+UF_HIDDEN = 0x8000  # macOS st_flags bit set by `chflags hidden`
 RECENT_SECONDS = 120
 # Extensions that should be binary; a text/HTML body means a failed or fake download.
 BINARY_EXTS = {".pdf", ".zip", ".exe", ".msi", ".png", ".jpg", ".jpeg", ".gif", ".docx",
@@ -52,7 +55,10 @@ def full_hash(path: Path) -> str:
 
 def read_motw_host(path: Path) -> str | None:
     """Windows records where a download came from in the Zone.Identifier
-    alternate data stream. Read only the host name; it stays local."""
+    alternate data stream; macOS keeps the URLs in the kMDItemWhereFroms
+    extended attribute. Read only the host name; it stays local."""
+    if sys.platform == "darwin":
+        return _where_froms_host(path)
     if os.name != "nt":
         return None
     try:
@@ -69,9 +75,25 @@ def read_motw_host(path: Path) -> str | None:
     return None
 
 
+def _where_froms_host(path: Path) -> str | None:
+    from . import macos
+    for url in macos.where_froms(path):
+        try:
+            u = urlparse(url.strip())
+            host = u.hostname
+        except ValueError:
+            continue
+        if u.scheme.lower() in ("http", "https") and host and host != "localhost":
+            return host.lower()
+    return None
+
+
 def _is_hidden_or_system(st: os.stat_result, name: str) -> bool:
     attrs = getattr(st, "st_file_attributes", 0)
     hidden = attrs & (stat.FILE_ATTRIBUTE_HIDDEN | stat.FILE_ATTRIBUTE_SYSTEM) if attrs else 0
+    if sys.platform == "darwin" and (getattr(st, "st_flags", 0) & UF_HIDDEN or name.lower() in MAC_SYSTEM_NAMES
+                                     or name.startswith("._")):  # AppleDouble resource-fork files
+        return True
     return bool(hidden) or name.lower() in SYSTEM_NAMES or (os.name != "nt" and name.startswith("."))
 
 
@@ -206,12 +228,15 @@ def _inspect(p: Path, rec: FileRecord, read_content: bool, extractor) -> None:
     kind = sniff.sniff_bytes(head)
     if kind == "zip":
         kind = sniff.refine_zip(p)
+    if rec.ext == ".dmg" and kind not in sniff.EXECUTABLE_KINDS and sniff.is_dmg(p):
+        kind = "dmg"  # compressed disk images have no header magic, only the trailer
     rec.sniffed = kind
     rec.source_host = read_motw_host(p)
 
     if kind in sniff.EXECUTABLE_KINDS and rec.ext not in sniff.COMPATIBLE[kind]:
         rec.ext_mismatch = True
-        rec.skip_reason = f"content is a {kind.upper()} program but the name says '{rec.ext or 'no extension'}' - possible disguised executable"
+        label = "Mach-O" if kind == "macho" else kind.upper()
+        rec.skip_reason = f"content is a {label} program but the name says '{rec.ext or 'no extension'}' - possible disguised executable"
         return
     if sniff.mismatch(kind, rec.ext):
         rec.ext_mismatch = True

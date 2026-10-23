@@ -42,6 +42,15 @@ from .llm import DEFAULT_MODEL
 from .service import execute, list_runs, load_plan, make_plan, recover, undo_run
 
 
+def _mac() -> bool:
+    return sys.platform == "darwin"
+
+
+def _bin() -> str:
+    """Where recycled files go, in this platform's words."""
+    return "Trash" if _mac() else "Recycle Bin"
+
+
 def _safe(s: str) -> str:
     """File names and model reasons are untrusted: never send raw control
     characters (ANSI escapes, bidi overrides) to the terminal."""
@@ -73,7 +82,7 @@ def _print_plan(plan) -> None:
             print(_safe(f"    [{p.confidence:.2f}] {p.rel_path}{rename}{flag}"))
             print(_safe(f"           because: {'; '.join(p.reasons)}"))
     if recycles:
-        print("\n  Suggested for the Recycle Bin (only with apply --recycle and a separate confirmation):")
+        print(f"\n  Suggested for the {_bin()} (only with apply --recycle and a separate confirmation):")
         for p in recycles:
             print(_safe(f"    {p.rel_path}: {'; '.join(p.reasons)}"))
     if keeps:
@@ -115,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--skip", action="append", default=[], help="file name to leave out (repeatable)")
     a.add_argument("--include", action="append", default=[], help="tick an unticked file (repeatable)")
     a.add_argument("--recycle", action="store_true",
-                   help="also send suggested old installers to the Recycle Bin (asks separately)")
+                   help=f"also send suggested old installers to the {_bin()} (asks separately)")
 
     u = sub.add_parser("undo", help="undo a run")
     u.add_argument("run_id", nargs="?")
@@ -141,7 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("folder")
     w.add_argument("--interval", type=float, default=30)
 
-    sc = sub.add_parser("schedule", help="run SlothFile automatically with Windows Task Scheduler")
+    sc = sub.add_parser("schedule", help="run SlothFile automatically with "
+                        + ("launchd" if _mac() else "Windows Task Scheduler"))
     scs = sc.add_subparsers(dest="sched", required=True)
     s_add = scs.add_parser("add", help="tidy FOLDER every day")
     s_add.add_argument("folder")
@@ -171,10 +181,17 @@ def main(argv: list[str] | None = None) -> int:
     prs.add_parser("selftest", help="fit on built-in made-up data (not yours) to prove predictions work")
     prs.add_parser("backtest", help="test it on your own newest reviews, which it was not trained on")
 
-    si = sub.add_parser("shell-install", help='add "Tidy with SlothFile" to the Explorer right-click menu')
-    si.add_argument("--run-alias", action="store_true", help='also let Windows+R open SlothFile by typing "slothfile"')
-    si.add_argument("--no-menu", action="store_true", help="skip the right-click menu (use with --run-alias)")
-    sub.add_parser("shell-uninstall", help="remove the right-click menu entry and the Windows+R shortcut")
+    if _mac():
+        si = sub.add_parser("shell-install", help='add the "Tidy with SlothFile" Finder Quick Action')
+        si.add_argument("--run-alias", action="store_true", help="Windows only (on a Mac, Spotlight finds SlothFile)")
+        si.add_argument("--no-menu", action="store_true", help="skip the Quick Action")
+        sub.add_parser("shell-uninstall", help="remove the Finder Quick Action")
+    else:
+        si = sub.add_parser("shell-install", help='add "Tidy with SlothFile" to the Explorer right-click menu')
+        si.add_argument("--run-alias", action="store_true",
+                        help='also let Windows+R open SlothFile by typing "slothfile"')
+        si.add_argument("--no-menu", action="store_true", help="skip the right-click menu (use with --run-alias)")
+        sub.add_parser("shell-uninstall", help="remove the right-click menu entry and the Windows+R shortcut")
 
     cl = sub.add_parser("cleanup", help="find temporary files and caches that can be removed")
     cls = cl.add_subparsers(dest="clean_cmd", required=True)
@@ -182,8 +199,8 @@ def main(argv: list[str] | None = None) -> int:
     c_clean = cls.add_parser("clean")
     c_clean.add_argument("report_id")
     c_clean.add_argument("--categories", required=True, help="comma-separated category keys from the scan")
-    c_clean.add_argument("--delete", action="store_true", help="delete permanently instead of using the Recycle Bin")
-    cls.add_parser("empty-bin", help="empty the Recycle Bin (cannot be undone; asks first)")
+    c_clean.add_argument("--delete", action="store_true", help=f"delete permanently instead of using the {_bin()}")
+    cls.add_parser("empty-bin", help=f"empty the {_bin()} (cannot be undone; asks first)")
 
     args = ap.parse_args(argv)
     try:
@@ -230,7 +247,7 @@ def _dispatch(args) -> int:
             return 1
         allow_recycle = False
         if args.recycle and recycles:
-            print(f"Also send {len(recycles)} old installer(s) to the Recycle Bin? You can restore them from there.")
+            print(f"Also send {len(recycles)} old installer(s) to the {_bin()}? You can restore them from there.")
             for p in recycles:
                 print(_safe(f"    {p.rel_path}"))
             allow_recycle = _confirm("", "RECYCLE")
@@ -365,17 +382,21 @@ def _dispatch(args) -> int:
         from . import automation
         if not args.no_menu:
             automation.install_context_menu()
-            print('Added "Tidy with SlothFile" to the right-click menu of folders.')
+            print('Added the "Tidy with SlothFile" Quick Action: right-click a folder in Finder, then Quick Actions.'
+                  if _mac() else 'Added "Tidy with SlothFile" to the right-click menu of folders.')
         if args.run_alias:
             automation.install_run_alias()
-            print('Press Windows+R and type "slothfile" to open SlothFile.')
+            print(automation.RUN_ALIAS_MAC_NOTE if _mac() else 'Press Windows+R and type "slothfile" to open SlothFile.')
         return 0
 
     if args.cmd == "shell-uninstall":
         from . import automation
-        automation.uninstall_context_menu()
+        kept = automation.uninstall_context_menu()
         automation.uninstall_run_alias()
-        print("Removed the right-click menu entry and the Windows+R shortcut.")
+        if _mac():
+            print("Kept (not made by SlothFile): " + ", ".join(kept) if kept else "Removed the Finder Quick Action.")
+        else:
+            print("Removed the right-click menu entry and the Windows+R shortcut.")
         return 0
 
     if args.cmd == "cleanup":
@@ -395,7 +416,7 @@ def _cleanup(args) -> int:
                 "suggested" if c.get("selected_by_default") else "optional")
             print(_safe(f"  {c['key']:16} {human_bytes(c['total_bytes']):>10}  {c['count']:6} files  [{state}]  {c['label']}"))
             print(_safe(f"  {'':16} {c['why']}"))
-        print(f"  Protected (never cleaned): {d['protected']['count']} files.  Recycle Bin: "
+        print(f"  Protected (never cleaned): {d['protected']['count']} files.  {_bin()}: "
               f"{human_bytes(d['recycle_bin']['bytes'])} in {d['recycle_bin']['items']} items.")
         print(f"\nTo clean: slothfile cleanup clean {d['report_id']} --categories "
               + ",".join(c["key"] for c in d["categories"] if c.get("selected_by_default") and not c.get("blocked_reason")))
@@ -408,12 +429,12 @@ def _cleanup(args) -> int:
                 return 1
             res = cleanup.clean(args.report_id, keys, mode="delete", confirm_permanent=True)
         else:
-            if not _confirm("Move the selected files to the Recycle Bin?", "YES"):
+            if not _confirm(f"Move the selected files to the {_bin()}?", "YES"):
                 print("Cancelled; nothing changed.")
                 return 1
             res = cleanup.clean(args.report_id, keys, mode="recycle")
         d = res.to_dict()
-        where = "deleted" if args.delete else "moved to the Recycle Bin (space is freed when you empty it)"
+        where = "deleted" if args.delete else f"moved to the {_bin()} (space is freed when you empty it)"
         print(f"  {d['removed_count']} files, {human_bytes(d['removed_bytes'])} {where}.")
         print(f"  Skipped {len(d['skipped'])}, errors {len(d['errors'])}. Free space now "
               f"{human_bytes(d['disk_free_after'])} (was {human_bytes(d['disk_free_before'])}).")
@@ -423,11 +444,11 @@ def _cleanup(args) -> int:
     if args.clean_cmd == "empty-bin":
         from . import winshell
         size, items = winshell.recycle_bin_info()
-        if not _confirm(f"Empty the Recycle Bin ({human_bytes(size)}, {items} items)? This cannot be undone.", "EMPTY"):
+        if not _confirm(f"Empty the {_bin()} ({human_bytes(size)}, {items} items)? This cannot be undone.", "EMPTY"):
             print("Cancelled; nothing changed.")
             return 1
         res = cleanup.empty_recycle_bin_confirmed(True)
-        print(f"  Recycle Bin emptied: freed {human_bytes(res['bytes_before'] - res['bytes_after'])}.")
+        print(f"  {_bin()} emptied: freed {human_bytes(res['bytes_before'] - res['bytes_after'])}.")
         return 0
     return 1
 

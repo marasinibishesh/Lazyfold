@@ -37,7 +37,7 @@ DOC_CATEGORIES = {"finance", "travel", "career", "manuals", "documents"}
 
 _EXT_CATEGORY: dict[str, str] = {}
 for _cat, _exts in {
-    "installers": ".exe .msi .msix .msixbundle .appx .appxbundle .iso .img .dmg .pkg .deb .rpm .appimage .apk",
+    "installers": ".exe .msi .msix .msixbundle .appx .appxbundle .iso .img .dmg .pkg .mpkg .deb .rpm .appimage .apk",
     "archives": ".zip .7z .rar .tar .gz .tgz .bz2 .xz .tbz2 .txz .zst .cab",
     "documents": ".pdf .doc .docx .odt .rtf .txt .md .pages .tex",
     "spreadsheets": ".xls .xlsx .ods .csv .tsv .numbers",
@@ -60,7 +60,8 @@ _SNIFF_CATEGORY = {"pdf": "documents", "docx": "documents", "rtf": "documents",
                    "mp4": "videos", "mkv": "videos", "avi": "videos",
                    "mp3": "audio", "ogg": "audio", "flac": "audio", "wav": "audio",
                    "zip": "archives", "rar": "archives", "7z": "archives", "gzip": "archives",
-                   "tar": "archives", "torrent": "torrents", "ttf": "fonts", "otf": "fonts"}
+                   "tar": "archives", "torrent": "torrents", "ttf": "fonts", "otf": "fonts",
+                   "dmg": "installers", "xar": "installers"}
 
 # Keyword evidence for document sub-categories: (pattern, weight).
 _KEYWORDS: dict[str, list[tuple[str, int]]] = {

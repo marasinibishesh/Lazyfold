@@ -71,6 +71,10 @@ def ocr_available() -> bool:
     global _available, _probe_timeouts
     if _available is not None:
         return _available
+    if sys.platform == "darwin":
+        from . import macos
+        _available = macos.ocr_available()  # Apple Vision, through pyobjc
+        return _available
     if sys.platform != "win32":
         _available = False
         return False
@@ -132,7 +136,10 @@ def ocr_images(paths: list[Path], timeout: float = 30) -> dict[str, str]:
     Returns str(input path) -> text for images that were read; failures are
     simply missing. Images are sent in batches of at most MAX_BATCH; a batch
     that times out keeps whatever it finished, and the other batches still
-    count. Returns {} when OCR is unavailable."""
+    count. Returns {} when OCR is unavailable. On macOS each image is read
+    in-process by Apple Vision instead."""
+    if sys.platform == "darwin" and paths:
+        return _ocr_images_mac(paths)
     if sys.platform != "win32" or not paths:
         return {}
     # Absolute paths: WinRT needs them, and an argument starting with "-" could
@@ -151,6 +158,18 @@ def ocr_images(paths: list[Path], timeout: float = 30) -> dict[str, str]:
                 return out  # no OCR engine for the user's languages
             continue
         _parse(stdout, absolute, out)
+    return out
+
+
+def _ocr_images_mac(paths: list[Path]) -> dict[str, str]:
+    from . import macos
+    if not macos.ocr_available():
+        return {}
+    out: dict[str, str] = {}
+    for p in paths:
+        text = macos.ocr_image(Path(os.path.abspath(p)))
+        if text and text.strip():
+            out[str(p)] = text.strip()[:MAX_TEXT]
     return out
 
 

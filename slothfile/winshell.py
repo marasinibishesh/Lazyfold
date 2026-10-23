@@ -4,7 +4,8 @@ Why ctypes and not `cmd /c del` or PowerShell one-liners: the Recycle Bin is
 only reachable through the shell API, and calling it directly means no path
 is ever pasted into a command line where quoting mistakes could widen what
 gets removed. Every function refuses links/junctions and anything that is not
-a regular file. On other operating systems the destructive functions raise
+a regular file. On macOS the same functions dispatch to `macos` (the Trash,
+Finder, `ps`). On other operating systems the destructive functions raise
 NotImplementedError and the informational ones return safe defaults.
 """
 
@@ -17,6 +18,8 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
+import threading
 import time
 from pathlib import Path
 
@@ -144,10 +147,64 @@ def is_in_use(path: Path) -> bool:
     return False
 
 
+_MAX_TRASHED = 1000
+_trashed: dict[str, str] = {}  # str(path) -> its path inside the macOS Trash
+_trashed_lock = threading.Lock()
+
+
+def _is_mac() -> bool:
+    return sys.platform == "darwin"
+
+
+def take_trash_path(path: str | Path) -> str | None:
+    """macOS: where the last recycle() put `path` inside the Trash (once), so the
+    caller can journal it and undo can put back exactly that item."""
+    with _trashed_lock:
+        return _trashed.pop(str(path), None) or None
+
+
+def _recycle_mac(paths: list[Path]) -> dict[str, str | None]:
+    from . import macos
+    result: dict[str, str | None] = {}
+    for p in paths:
+        key = str(p)
+        p = Path(p)
+        if is_link_like(p):
+            result[key] = "is a link or alias; refusing"
+            continue
+        if not _regular_file(p):
+            result[key] = "not a regular file"
+            continue
+        try:
+            where = macos.trash(p)
+        except OSError as e:
+            result[key] = str(e) or type(e).__name__
+            continue
+        if os.path.lexists(p):
+            result[key] = "still present after moving to the Trash"
+            continue
+        result[key] = None
+        if where:
+            with _trashed_lock:
+                _trashed[key] = where
+                while len(_trashed) > _MAX_TRASHED:
+                    _trashed.pop(next(iter(_trashed)))
+    return result
+
+
+def recycle_paths(paths: list[Path]) -> dict[str, tuple[str | None, str | None]]:
+    """Like recycle(), but returns {str(path): (trash_path or None, error or None)}.
+    The trash path is only known on macOS."""
+    res = recycle(paths)
+    return {k: (take_trash_path(k) if err is None else None, err) for k, err in res.items()}
+
+
 def recycle(paths: list[Path]) -> dict[str, str | None]:
     """Send regular files to the Recycle Bin. Returns {str(path): None if gone,
     else a readable reason}. Success is judged by the disk afterwards, not by
     the API's return code, which can be nonzero after partial success."""
+    if _is_mac():
+        return _recycle_mac(paths)
     _require_windows()
     result: dict[str, str | None] = {}
     todo: list[tuple[str, Path]] = []
@@ -224,11 +281,27 @@ exit 0
 """
 
 
-def restore_from_recycle_bin(original_path: Path, timeout: float = 30) -> bool:
+def _restore_mac(original_path: Path, trashed: str | Path | None) -> bool:
+    from . import macos
+    target = Path(os.path.abspath(original_path))
+    if os.path.lexists(target):
+        return False
+    if not trashed:
+        # Unknown location (e.g. recovered after a crash): the Trash keeps the
+        # name unless it was taken. The caller verifies the fingerprint.
+        trashed = Path.home() / ".Trash" / target.name
+    return macos.restore_from_trash(trashed, target)
+
+
+def restore_from_recycle_bin(original_path: Path, timeout: float = 30, *,
+                             trashed: str | Path | None = None) -> bool:
     """Best-effort: put back the most recently recycled item that came from
     `original_path`. The path travels in an environment variable, never inside
     the script text, so no file name can change what the script does. True
-    only if the file exists again afterwards."""
+    only if the file exists again afterwards. On macOS `trashed` names the
+    item inside the Trash (from recycle_paths / take_trash_path)."""
+    if _is_mac():
+        return _restore_mac(original_path, trashed)
     _require_windows()
     target = _long_form(Path(original_path))
     if os.path.lexists(target):
@@ -250,7 +323,12 @@ def restore_from_recycle_bin(original_path: Path, timeout: float = 30) -> bool:
 
 
 def recycle_bin_info() -> tuple[int, int]:
-    """(bytes, items) in the Recycle Bins of all drives; (0, 0) if unknown."""
+    """(bytes, items) in the Recycle Bins of all drives; (0, 0) if unknown.
+    On macOS: the user's Trash."""
+    if _is_mac():
+        from . import macos
+        items, size = macos.trash_info()
+        return (size, items)
     if os.name != "nt":
         return (0, 0)
     info = _SHQUERYRBINFO(cbSize=ctypes.sizeof(_SHQUERYRBINFO))
@@ -261,7 +339,12 @@ def recycle_bin_info() -> tuple[int, int]:
 
 def empty_recycle_bin() -> None:
     """Permanently empty every Recycle Bin. Irreversible: callers must have an
-    explicit, separate confirmation (see cleanup.empty_recycle_bin_confirmed)."""
+    explicit, separate confirmation (see cleanup.empty_recycle_bin_confirmed).
+    On macOS this empties the Trash through Finder."""
+    if _is_mac():
+        from . import macos
+        macos.empty_trash()
+        return
     _require_windows()
     hr = _SHEmptyRecycleBinW(None, None, SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND)
     if hr not in (S_OK, E_UNEXPECTED):
@@ -296,6 +379,9 @@ def disk_free(path: str | Path) -> int:
 def running_processes() -> set[str]:
     """Lower-case executable names of running processes. Raises OSError if the
     list can't be read, so callers can block rather than guess."""
+    if _is_mac():
+        from . import macos
+        return macos.running_processes()
     if os.name != "nt":
         return set()
     try:

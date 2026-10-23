@@ -35,7 +35,13 @@ _SIGNATURES: list[tuple[int, bytes, str]] = [
     (0, b"{\\rtf", "rtf"),
     (0, b"d8:announce", "torrent"),
     (257, b"ustar", "tar"),
+    (0, b"xar!", "xar"),  # macOS flat installer package (.pkg / .mpkg)
 ]
+
+# Mach-O executables (32/64-bit, either byte order) and universal ("fat") binaries.
+_MACHO_MAGIC = {b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf", b"\xce\xfa\xed\xfe", b"\xcf\xfa\xed\xfe"}
+_FAT_MAGIC = {b"\xca\xfe\xba\xbe", b"\xca\xfe\xba\xbf", b"\xbe\xba\xfe\xca", b"\xbf\xba\xfe\xca"}
+_JAVA_MIN_MAJOR = 45  # a Java .class also starts with CAFEBABE, then its version (>= 45)
 
 # Which sniffed kinds are consistent with which extensions.
 COMPATIBLE: dict[str, set[str]] = {
@@ -67,14 +73,43 @@ COMPATIBLE: dict[str, set[str]] = {
     "woff": {".woff"}, "woff2": {".woff2"}, "ttf": {".ttf"}, "otf": {".otf"},
     "rtf": {".rtf"},
     "torrent": {".torrent"},
+    "macho": {"", ".dylib", ".so", ".bundle", ".bin", ".o", ".node", ".command"},
+    "xar": {".pkg", ".mpkg", ".xar", ".xip"},
+    "dmg": {".dmg"},
 }
 
 # Content kinds that can execute code. A file whose bytes say "executable" but whose
 # name says otherwise is the classic disguised-malware pattern: never touch it.
-EXECUTABLE_KINDS = {"exe", "elf"}
+EXECUTABLE_KINDS = {"exe", "elf", "macho"}
+
+
+def _is_macho(head: bytes) -> bool:
+    magic = head[:4]
+    if magic in _MACHO_MAGIC:
+        return True
+    if magic in _FAT_MAGIC and len(head) >= 8:
+        count = int.from_bytes(head[4:8], "big" if magic[0] == 0xCA else "little")
+        return 0 < count < _JAVA_MIN_MAJOR
+    return False
+
+
+def is_dmg(path: Path) -> bool:
+    """A macOS disk image (UDIF) ends with a 512-byte trailer starting 'koly'."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            if size < 512:
+                return False
+            f.seek(size - 512)
+            return f.read(4) == b"koly"
+    except OSError:
+        return False
 
 
 def sniff_bytes(head: bytes) -> str | None:
+    if _is_macho(head):
+        return "macho"
     for offset, magic, kind in _SIGNATURES:
         if head[offset:offset + len(magic)] == magic:
             return kind

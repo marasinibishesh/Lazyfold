@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -29,6 +30,11 @@ Progress = Callable[[str, "float | None"], None]
 
 DOWNLOAD_HINT = "about 4.3 GB"  # size of DEFAULT_MODEL; shown before the user commits to a download
 OLLAMA_DOWNLOAD_URL = "https://ollama.com/download"
+OLLAMA_MAC_DOWNLOAD_URL = "https://ollama.com/download/mac"
+MAC_OLLAMA_PATHS = ("/Applications/Ollama.app/Contents/Resources/ollama", "/usr/local/bin/ollama",
+                    "/opt/homebrew/bin/ollama")
+MAC_BREW_PATHS = ("/opt/homebrew/bin/brew", "/usr/local/bin/brew")
+BREW_TIMEOUT = 30 * 60
 WINGET_ARGS = ["install", "-e", "--id", "Ollama.Ollama", "--source", "winget", "--silent",
                "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity"]
 WINGET_TIMEOUT = 30 * 60
@@ -43,6 +49,10 @@ def _noop(stage: str, percent: float | None) -> None:
     pass
 
 
+def _is_mac() -> bool:
+    return sys.platform == "darwin"
+
+
 def _candidates() -> list[str]:
     """Where Ollama may live, in priority order (the user's explicit choice first)."""
     out: list[str] = []
@@ -53,6 +63,13 @@ def _candidates() -> list[str]:
         configured = None
     if configured:
         out.append(configured)
+    if _is_mac():
+        # An app opened from Finder gets a minimal PATH, so the usual places are listed explicitly.
+        out += [*MAC_OLLAMA_PATHS, os.path.expanduser("~/Applications/Ollama.app/Contents/Resources/ollama")]
+        found = shutil.which("ollama")
+        if found:
+            out.append(found)
+        return out
     found = shutil.which("ollama")
     if found:
         out.append(found)
@@ -104,6 +121,11 @@ def status() -> dict[str, Any]:
         msg = f"Ollama is running, but the Gemma model is not downloaded yet ({DOWNLOAD_HINT})."
     elif path:
         msg = "Ollama is installed but not running. Setup will start it."
+    elif _is_mac():
+        msg = (f"Ollama is not installed. Setup will install it with Homebrew and download Gemma ({DOWNLOAD_HINT})."
+               if find_brew() else
+               f"Ollama is not installed. Install it from {OLLAMA_MAC_DOWNLOAD_URL}, then run setup to "
+               f"download Gemma ({DOWNLOAD_HINT}).")
     else:
         msg = (f"Ollama is not installed. Setup will install it with Windows Package Manager "
                f"and download Gemma ({DOWNLOAD_HINT}).")
@@ -119,10 +141,12 @@ def start_server(path: str | None, wait: float = 20.0) -> bool:
     if not path or not os.path.isfile(path):
         return False
     env = {**os.environ, "OLLAMA_HOST": "127.0.0.1:11434"}  # loopback only, whatever the user's env says
+    # Windows: hidden and detached. Elsewhere: its own session, so it outlives the app too.
+    detach = {"creationflags": _NO_WINDOW | _DETACHED} if sys.platform == "win32" else {"start_new_session": True}
     try:
         proc = subprocess.Popen([path, "serve"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL, env=env, cwd=os.path.dirname(path),
-                                creationflags=_NO_WINDOW | _DETACHED, close_fds=True)
+                                close_fds=True, **detach)
     except OSError:
         return False
     deadline = time.monotonic() + wait
@@ -138,8 +162,11 @@ def start_server(path: str | None, wait: float = 20.0) -> bool:
 
 def install_ollama(progress: Progress | None = None) -> str:
     """Install Ollama per-user with winget. Only ever called on an explicit
-    user request. Returns the detected ollama.exe path."""
+    user request. Returns the detected ollama.exe path. macOS: Homebrew
+    (`brew install ollama`) when it is installed, never a downloaded script."""
     report = progress or _noop
+    if _is_mac():
+        return _install_ollama_mac(report)
     winget = shutil.which("winget")
     if not winget:
         raise RuntimeError("Windows Package Manager (winget) is not available on this PC. "
@@ -182,6 +209,40 @@ def install_ollama(progress: Progress | None = None) -> str:
     if not path:
         raise RuntimeError(f"Ollama was installed but SlothFile cannot find ollama.exe. "
                            f"Restart SlothFile, or install it from {OLLAMA_DOWNLOAD_URL}.")
+    report("Ollama installed", 100.0)
+    return path
+
+
+def find_brew() -> str | None:
+    """Homebrew's brew, if installed (an app opened from Finder has a minimal PATH)."""
+    for p in (shutil.which("brew"), *MAC_BREW_PATHS):
+        if p and os.path.isfile(p):
+            return os.path.abspath(p)
+    return None
+
+
+def _install_ollama_mac(report: Progress) -> str:
+    brew = find_brew()
+    if not brew:
+        raise RuntimeError(f"Homebrew is not installed on this Mac. Download Ollama from {OLLAMA_MAC_DOWNLOAD_URL}, "
+                           "open it once, then try again.")
+    report("Installing Ollama with Homebrew (this can take a few minutes)", None)
+    env = {**os.environ, "HOMEBREW_NO_ENV_HINTS": "1"}
+    try:
+        r = subprocess.run([brew, "install", "ollama"], stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                           errors="replace", timeout=BREW_TIMEOUT, env=env)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"Installing Ollama took too long. Install it from {OLLAMA_MAC_DOWNLOAD_URL}.") from None
+    except OSError as e:
+        raise RuntimeError(f"Could not run Homebrew ({e}). Install Ollama from {OLLAMA_MAC_DOWNLOAD_URL}.") from e
+    if r.returncode != 0:
+        last = " ".join((r.stderr or r.stdout or "").split())[-200:]
+        raise RuntimeError(f"Homebrew could not install Ollama (exit code {r.returncode}"
+                           f"{': ' + last if last else ''}). Install it from {OLLAMA_MAC_DOWNLOAD_URL}.")
+    path = find_ollama()
+    if not path:
+        raise RuntimeError(f"Ollama was installed but SlothFile cannot find it. "
+                           f"Restart SlothFile, or install it from {OLLAMA_MAC_DOWNLOAD_URL}.")
     report("Ollama installed", 100.0)
     return path
 
@@ -262,7 +323,8 @@ def setup(progress: Progress | None = None) -> dict[str, Any]:
         report("Starting Ollama", None)
         if not start_server(path):
             raise RuntimeError("Ollama is installed but its server did not start. "
-                               "Restart your PC or start Ollama from the Start menu, then try again.")
+                               + ("Open Ollama from Applications, then try again." if _is_mac() else
+                                  "Restart your PC or start Ollama from the Start menu, then try again."))
         names = _tags() or []
     if not _has_model(names, DEFAULT_MODEL):
         pull_model(report)

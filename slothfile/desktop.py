@@ -19,17 +19,61 @@ from http.server import ThreadingHTTPServer
 
 APP_TITLE = "SlothFile"
 APP_MUTEX = "SlothFileAppMutex"  # must match AppMutex in packaging/slothfile.iss
+APP_LOCK_FILE = "app.lock"  # macOS: flock'ed file in the state folder
 _mutex = None
+_lock_fd = None
 
 
-def hold_app_mutex() -> None:
+def _is_mac() -> bool:
+    return sys.platform == "darwin"
+
+
+def _hold_mac_lock() -> bool:
+    """macOS single-instance lock: an exclusive, non-blocking flock on
+    <state>/app.lock, held (fd kept open) until the process exits. The OS
+    drops it when the process dies, so a crash never leaves a stale lock.
+    True if this process holds it, False if another SlothFile does."""
+    global _lock_fd
+    if _lock_fd is not None:
+        return True
+    import fcntl  # POSIX only; imported lazily so Windows never needs it
+    from .journal import state_dir
+    fd = os.open(state_dir() / APP_LOCK_FILE, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        os.close(fd)
+        return False
+    os.ftruncate(fd, 0)
+    os.write(fd, str(os.getpid()).encode())
+    _lock_fd = fd
+    return True
+
+
+def hold_window_lock() -> bool:
+    """macOS: True if this process may open the main window (no other
+    SlothFile window is open). Elsewhere always True."""
+    if not _is_mac():
+        return True
+    try:
+        return _hold_mac_lock()
+    except OSError:
+        return True  # an unreadable state folder must never stop the app from opening
+
+
+def hold_app_mutex() -> bool:
     """Announce "SlothFile is running" for the installer/uninstaller, which
     then asks the user to close the app instead of leaving files half-removed.
-    The handle lives until the process exits."""
+    The handle lives until the process exits. macOS has no installer that
+    needs it; the window takes its own single-instance lock (hold_window_lock),
+    so a scheduled or watching run never blocks opening the app."""
     global _mutex
+    if _is_mac():
+        return True
     if _mutex is None and os.name == "nt":
         import ctypes
         _mutex = ctypes.windll.kernel32.CreateMutexW(None, False, APP_MUTEX)
+    return True
 
 
 def _ensure_streams() -> None:
@@ -69,7 +113,10 @@ class DesktopApi:
 
 
 def _close_native_splash() -> None:
-    """Close the PyInstaller splash image (installed exe only)."""
+    """Close the PyInstaller splash image (installed exe only). PyInstaller
+    has no native splash on macOS; the HTML splash in the page still shows."""
+    if _is_mac():
+        return
     try:
         import pyi_splash  # only exists inside a PyInstaller build with a Splash
         pyi_splash.close()
@@ -119,6 +166,11 @@ def main(argv: list[str] | None = None) -> int:
     _ensure_streams()
     hold_app_mutex()
     args = list(sys.argv[1:] if argv is None else argv)
+    if (not args or args[0] == "ui") and not hold_window_lock() and args in ([], ["ui"]):
+        # macOS, plain second launch: a SlothFile window is already open. A
+        # launch with a folder (the Finder Quick Action) or a command still runs.
+        print("SlothFile is already running.")
+        return 0
     if args and args[0] != "ui":
         _close_native_splash()  # headless command (scheduled task, right-click): no splash
     if not args or args[0] == "ui":

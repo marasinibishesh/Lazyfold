@@ -1,5 +1,6 @@
 """Desktop app and installed-exe behaviour (no window is opened in these tests)."""
 
+import pytest
 import sys
 from pathlib import Path
 
@@ -16,6 +17,7 @@ def fake_frozen(monkeypatch, tmp_path, name="SlothFileCLI.exe"):
     return app
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour (schtasks, toast, .exe names, creation flags)")
 def test_installed_exe_launches_windowless_app(monkeypatch, tmp_path):
     app = fake_frozen(monkeypatch, tmp_path)
     gui = str(app / "SlothFile.exe")

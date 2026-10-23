@@ -12,7 +12,7 @@ from pathlib import Path
 
 OUT = Path(__file__).resolve().parent / "third_party"
 SKIP = {"pip", "setuptools", "wheel", "pyinstaller", "pyinstaller-hooks-contrib", "altgraph", "pefile",
-        "pywin32-ctypes", "packaging"}  # build tools, not shipped inside the app
+        "pywin32-ctypes", "packaging", "macholib", "dmgbuild"}  # build tools, not shipped inside the app
 
 
 def license_of(dist) -> str:

@@ -390,23 +390,23 @@ dialog .dfoot .btn { min-width: 120px; }
           <div class="row">
             <div class="grow"><div class="big" id="clean-total">0 bytes</div><div class="muted small" id="clean-sub"></div></div>
             <div class="seg" id="clean-mode" role="group" aria-label="How to remove">
-              <button data-mode="recycle" aria-pressed="true">Recycle Bin</button><button data-mode="delete" aria-pressed="false">Delete permanently</button>
+              <button data-mode="recycle" aria-pressed="true" data-mac="Trash">Recycle Bin</button><button data-mode="delete" aria-pressed="false">Delete permanently</button>
             </div>
             <button class="btn primary" id="clean-go">Clean selected</button>
           </div>
-          <p class="tiny m10" id="clean-mode-hint">Recoverable from the Recycle Bin. Space is freed when you empty it.</p>
+          <p class="tiny m10" id="clean-mode-hint" data-mac="Recoverable from the Trash. Space is freed when you empty it.">Recoverable from the Recycle Bin. Space is freed when you empty it.</p>
         </div>
         <div class="card p0" id="clean-cats"></div>
         <p class="small muted" id="clean-protected"></p>
         <div id="clean-outcome"></div>
       </div>
-      <div class="section-title">Recycle Bin</div>
+      <div class="section-title" data-mac="Trash">Recycle Bin</div>
       <div class="setting solo">
         <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>
-        <div class="label"><b id="bin-info">Scan to see how much the Recycle Bin holds</b><span>Emptying is permanent and never part of another action.</span></div>
-        <button class="btn" id="bin-empty" disabled>Empty Recycle Bin</button>
+        <div class="label"><b id="bin-info" data-mac="Scan to see how much the Trash holds">Scan to see how much the Recycle Bin holds</b><span>Emptying is permanent and never part of another action.</span></div>
+        <button class="btn" id="bin-empty" disabled data-mac="Empty Trash">Empty Recycle Bin</button>
       </div>
-      <p class="small muted mt14">SlothFile never asks for administrator rights and never touches C:\Windows\Temp, Windows Update files or Prefetch.
+      <p class="small muted mt14" data-mac="SlothFile never asks for administrator rights and never touches /System, /Library, Safari, Mail, Photos or iCloud. Use Apple menu → System Settings → General → Storage for those.">SlothFile never asks for administrator rights and never touches C:\Windows\Temp, Windows Update files or Prefetch.
         Use Windows Settings → System → Storage for those.</p>
     </section>
 
@@ -423,7 +423,7 @@ dialog .dfoot .btn { min-width: 120px; }
       <div class="section-title">Schedule</div>
       <div class="setting first">
         <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-        <div class="label"><b>Tidy every day</b><span id="sched-text">Runs in the background with Windows Task Scheduler. No admin rights needed.</span></div>
+        <div class="label"><b>Tidy every day</b><span id="sched-text" data-mac="Runs in the background with macOS launchd. No admin rights needed.">Runs in the background with Windows Task Scheduler. No admin rights needed.</span></div>
         <input type="time" class="input" id="sched-at" value="20:00" aria-label="Time">
         <span class="switch"><input type="checkbox" id="sched-daily" aria-label="Tidy every day"><i></i></span>
       </div>
@@ -454,7 +454,7 @@ dialog .dfoot .btn { min-width: 120px; }
       </div>
       <div class="setting last">
         <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-        <div class="label"><b>Theme</b><span>Follow Windows, or choose light or dark</span></div>
+        <div class="label"><b>Theme</b><span data-mac="Follow macOS, or choose light or dark">Follow Windows, or choose light or dark</span></div>
         <div class="seg" id="theme" role="group" aria-label="Theme"><button data-v="system">System</button><button data-v="light">Light</button><button data-v="dark">Dark</button></div>
       </div>
 
@@ -485,11 +485,11 @@ dialog .dfoot .btn { min-width: 120px; }
       <div class="setting last"><div class="label"><span>Built with PriorLabs-TabPFN. Runs on this PC. Kept on this PC only: file type, size, age, download site, the folder SlothFile proposed, the folder you chose, and whether you accepted it. Never file names or contents.</span></div></div>
 
       <div class="section-title">Organizing</div>
-      <div class="setting first"><div class="label"><b>Read scanned PDFs and photos of documents</b><span>Uses Windows' built-in text recognition (OCR)</span></div><span class="switch"><input type="checkbox" data-setting="ocr"><i></i></span></div>
+      <div class="setting first"><div class="label"><b>Read scanned PDFs and photos of documents</b><span data-mac="Uses macOS text recognition">Uses Windows' built-in text recognition (OCR)</span></div><span class="switch"><input type="checkbox" data-setting="ocr"><i></i></span></div>
       <div class="setting"><div class="label"><b>Sort camera photos by date</b><span>Into Images\Year\Month, using the date the photo was taken</span></div><span class="switch"><input type="checkbox" data-setting="photos_by_date"><i></i></span></div>
       <div class="setting"><div class="label"><b>Find similar copies</b><span>Re-saved documents and resized photos. Suggested unticked.</span></div><span class="switch"><input type="checkbox" data-setting="near_duplicates"><i></i></span></div>
       <div class="setting"><div class="label"><b>Unpack .zip files</b><span>Into Archives\&lt;name&gt; after checking they are safe</span></div><span class="switch"><input type="checkbox" data-setting="unpack_zip_archives"><i></i></span></div>
-      <div class="setting last"><div class="label"><b>Suggest removing old installers after</b><span>Days. 0 turns it off. Suggestions start unticked and go to the Recycle Bin only after you confirm.</span></div><input class="input num" type="number" min="0" step="1" data-setting="recycle_old_installers_days" aria-label="Days"></div>
+      <div class="setting last"><div class="label"><b>Suggest removing old installers after</b><span data-mac="Days. 0 turns it off. Suggestions start unticked and go to the Trash only after you confirm.">Days. 0 turns it off. Suggestions start unticked and go to the Recycle Bin only after you confirm.</span></div><input class="input num" type="number" min="0" step="1" data-setting="recycle_old_installers_days" aria-label="Days"></div>
 
       <div class="section-title" id="trusted-title">Automatic tidy</div>
       <div class="setting first stack">
@@ -501,8 +501,8 @@ dialog .dfoot .btn { min-width: 120px; }
       <div class="setting last"><div class="label"><b>Notify when at least</b><span>files were handled</span></div><input class="input num" type="number" min="0" step="1" data-setting="notify_min_files" aria-label="Files"></div>
 
       <div class="section-title">Shortcuts</div>
-      <div class="setting first"><div class="label"><b>"Tidy with SlothFile" in the right-click menu</b><span>On folders in File Explorer (Windows 11: Show more options)</span></div><span class="switch"><input type="checkbox" id="ctx-menu"><i></i></span></div>
-      <div class="setting last"><div class="label"><b>Open from Windows+R</b><span>Type slothfile in the Run box</span></div><span class="switch"><input type="checkbox" id="run-alias"><i></i></span></div>
+      <div class="setting first" id="ctx-row"><div class="label"><b data-mac="Finder Quick Action: Tidy with SlothFile">"Tidy with SlothFile" in the right-click menu</b><span data-mac="Right-click a folder in Finder, then choose Quick Actions">On folders in File Explorer (Windows 11: Show more options)</span></div><span class="switch"><input type="checkbox" id="ctx-menu"><i></i></span></div>
+      <div class="setting last" id="run-alias-row"><div class="label"><b>Open from Windows+R</b><span>Type slothfile in the Run box</span></div><span class="switch"><input type="checkbox" id="run-alias"><i></i></span></div>
 
       <div class="section-title">Privacy &amp; learning</div>
       <div class="setting first stack"><div class="label"><b>What SlothFile learned from you</b><span>When you change a file's folder twice, SlothFile remembers it.</span></div><div id="learned"></div></div>
@@ -512,7 +512,7 @@ dialog .dfoot .btn { min-width: 120px; }
       <div class="setting solo">
         <svg class="icon about-logo" viewBox="0 0 100 100"><use href="#logo"/></svg>
         <div class="label"><b>SlothFile <span id="ver"></span></b><span>Created by Bishesh Marasini · MIT License · github.com/marasinibishesh/SlothFile</span>
-          <span>Local AI: Gemma 4 (Apache 2.0) via Ollama · Predictions: Built with PriorLabs-TabPFN · Text from scans: Windows OCR</span></div>
+          <span data-mac="Local AI: Gemma 4 (Apache 2.0) via Ollama · Predictions: Built with PriorLabs-TabPFN · Text from scans: macOS text recognition">Local AI: Gemma 4 (Apache 2.0) via Ollama · Predictions: Built with PriorLabs-TabPFN · Text from scans: Windows OCR</span></div>
       </div>
     </section>
   </main>
@@ -542,7 +542,15 @@ dialog .dfoot .btn { min-width: 120px; }
 const TOKEN = new URLSearchParams(location.search).get("t") || "";
 history.replaceState(null, "", "/");  // keep the token out of the visible URL
 const $ = (id) => document.getElementById(id);
-const S = { plan: null, settings: null, categories: {}, clean: null, cleanMode: "recycle", run: null, home: {} };
+const S = { plan: null, settings: null, categories: {}, clean: null, cleanMode: "recycle", run: null, home: {}, platform: "windows" };
+const MAC = () => S.platform === "mac";
+const BIN = () => (MAC() ? "Trash" : "Recycle Bin");  // where recycled files go, in this platform's words
+function applyPlatform() {
+  if (!MAC()) return;
+  document.querySelectorAll("[data-mac]").forEach((e) => { e.textContent = e.dataset.mac; });
+  $("run-alias-row").classList.add("hidden");  // no Windows+R on a Mac; Spotlight finds SlothFile
+  $("ctx-row").classList.replace("first", "solo");
+}
 
 /* ---------- helpers ---------- */
 function el(tag, props = {}, ...kids) {
@@ -653,6 +661,7 @@ async function init() {
   try {
     const [st, set] = await Promise.all([api("/api/state"), api("/api/settings")]);
     S.settings = set.settings; S.categories = set.categories; S.home = st.home_folders || {};
+    S.platform = st.platform === "mac" ? "mac" : "windows"; applyPlatform();
     applyTheme(S.settings.theme);
     if (st.version) { $("ver").textContent = st.version; $("nav-foot").textContent = `Version ${st.version} · runs on this PC only`; }
     $("folder").value = st.initial_folder || S.settings.default_folder || S.home.Downloads || "";
@@ -816,7 +825,7 @@ function renderPlan() {
     all.onchange = () => { boxes.forEach((b) => (b.checked = all.checked)); updateCount(); };
     wrap.append(g);
   }
-  if (recycles.length) wrap.append(extraGroup("Old installers · move to Recycle Bin?", recycles, true));
+  if (recycles.length) wrap.append(extraGroup(`Old installers · move to ${BIN()}?`, recycles, true));
   if (keeps.length) wrap.append(extraGroup("Left alone", keeps, false));
   $("review-folder").textContent = S.plan.root;
   setStep(2); updateCount(); $("main").scrollTop = 0;
@@ -826,7 +835,7 @@ function extraGroup(title, list, selectable) {
   const body = el("div", { class: "group-body" });
   const g = el("div", { class: "group collapsed" }, head, body);
   head.onclick = () => g.classList.toggle("collapsed");
-  if (selectable) body.append(el("div", { class: "item kept" }, el("div", { class: "small muted", text: "Unticked by default. If you tick any, SlothFile asks once more before sending them to the Recycle Bin." })));
+  if (selectable) body.append(el("div", { class: "item kept" }, el("div", { class: "small muted", text: `Unticked by default. If you tick any, SlothFile asks once more before sending them to the ${BIN()}.` })));
   for (const p of list) {
     const row = el("div", { class: "item" + (selectable ? "" : " kept") });
     if (selectable) { const b = el("input", { type: "checkbox", class: "check recycle-box", title: "Recycle " + p.rel_path }); b.dataset.rel = p.rel_path; b.onchange = updateCount; row.append(b); }
@@ -842,7 +851,7 @@ const selected = () => [...document.querySelectorAll("#groups .move-box")].filte
 const selectedRecycle = () => [...document.querySelectorAll("#groups .recycle-box")].filter((b) => b.checked).map((b) => b.dataset.rel);
 function updateCount() {
   const n = selected().length, r = selectedRecycle().length;
-  $("selected-count").textContent = plural(n, "file") + " selected" + (r ? ` · ${r} to the Recycle Bin` : "");
+  $("selected-count").textContent = plural(n, "file") + " selected" + (r ? ` · ${r} to the ${BIN()}` : "");
   $("approve").textContent = r ? `Move ${n} and recycle ${r}` : `Move ${plural(n, "file")}`;
   $("approve").disabled = n + r === 0;
 }
@@ -854,8 +863,8 @@ $("approve").onclick = async () => {
   if (!(await confirmDialog({ title: `Move ${plural(n, "file")}?`, yes: "Move",
     body: `Files are moved into folders inside ${S.plan.root}. Nothing is deleted or overwritten, and you can undo the whole run from History.` }))) return;
   let allowRecycle = false;
-  if (recycle.length) allowRecycle = await confirmDialog({ title: `Also send ${plural(recycle.length, "installer")} to the Recycle Bin?`,
-    yes: "Recycle", body: recycle.join(", ") + ". You can restore them from the Recycle Bin until you empty it." });
+  if (recycle.length) allowRecycle = await confirmDialog({ title: `Also send ${plural(recycle.length, "installer")} to the ${BIN()}?`,
+    yes: MAC() ? "Move to Trash" : "Recycle", body: recycle.join(", ") + `. You can restore them from the ${BIN()} until you empty it.` });
   const renames = {}, overrides = {};
   document.querySelectorAll("#groups input.rename").forEach((i) => { if (i.value.trim() && i.value.trim() !== i.dataset.orig) renames[i.dataset.rel] = i.value.trim(); });
   document.querySelectorAll("#groups select.override").forEach((s) => { if (s.value !== s.dataset.orig) overrides[s.dataset.rel] = s.value; });
@@ -869,7 +878,7 @@ function showDone(r) {
   S.run = r.run_id; const s = r.summary;
   const folders = new Set(r.results.filter((x) => x.status === "moved" && x.dst).map((x) => x.dst.split(/[\\/]/)[0]));
   $("done-title").textContent = s.moved ? `Moved ${plural(s.moved, "file")}` : "Nothing was moved";
-  $("done-text").textContent = (s.moved ? `Into ${plural(folders.size, "folder")}. ` : "") + (s.recycled ? `${s.recycled} sent to the Recycle Bin. ` : "") +
+  $("done-text").textContent = (s.moved ? `Into ${plural(folders.size, "folder")}. ` : "") + (s.recycled ? `${s.recycled} sent to the ${BIN()}. ` : "") +
     (s.skipped || s.failed ? `${s.skipped + s.failed} could not be moved (details below).` : "Everything went as planned.");
   const issues = r.results.filter((x) => (x.status !== "moved" && x.status !== "recycled") || x.detail);
   const box = $("done-issues"); box.replaceChildren();
@@ -904,7 +913,7 @@ $("clean-scan").onclick = async () => {
 document.querySelectorAll("#clean-mode button").forEach((b) => b.onclick = () => {
   S.cleanMode = b.dataset.mode;
   document.querySelectorAll("#clean-mode button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-  $("clean-mode-hint").textContent = S.cleanMode === "recycle" ? "Recoverable from the Recycle Bin. Space is freed when you empty it."
+  $("clean-mode-hint").textContent = S.cleanMode === "recycle" ? `Recoverable from the ${BIN()}. Space is freed when you empty it.`
     : "Frees space immediately. Deleted files cannot be restored.";
   $("clean-go").className = "btn " + (S.cleanMode === "delete" ? "danger" : "primary");
 });
@@ -926,7 +935,7 @@ function renderCleanup() {
   }
   if (!wrap.children.length) wrap.append(el("div", { class: "empty", text: "Nothing to clean right now." }));
   $("clean-protected").textContent = `${plural(r.protected.count, "file")} (${bytes(r.protected.bytes)}) kept for safety: personal-looking, unknown or in use.`;
-  $("bin-info").textContent = `Recycle Bin: ${bytes(r.recycle_bin.bytes)} in ${plural(r.recycle_bin.items, "item")}`;
+  $("bin-info").textContent = `${BIN()}: ${bytes(r.recycle_bin.bytes)} in ${plural(r.recycle_bin.items, "item")}`;
   $("bin-empty").disabled = !r.recycle_bin.items;
   $("clean-outcome").replaceChildren(); updateCleanTotal();
 }
@@ -944,24 +953,24 @@ $("clean-go").onclick = async () => {
   const del = S.cleanMode === "delete";
   const ok = del ? await confirmDialog({ title: `Permanently delete ${bytes(total)}?`, danger: true, word: "DELETE", yes: "Delete",
       body: "These temporary files will be deleted and cannot be restored. Files that changed since the scan or are in use are skipped." })
-    : await confirmDialog({ title: `Move ${bytes(total)} to the Recycle Bin?`, yes: "Move to Recycle Bin", body: "You can restore anything from the Recycle Bin." });
+    : await confirmDialog({ title: `Move ${bytes(total)} to the ${BIN()}?`, yes: `Move to ${BIN()}`, body: `You can restore anything from the ${BIN()}.` });
   if (!ok) return;
   $("clean-go").disabled = true;
   try {
     const r = await api("/api/cleanup/clean", { report_id: S.clean.report_id, categories: keys, mode: S.cleanMode, confirm_permanent: del });
     const out = $("clean-outcome");
-    out.replaceChildren(el("div", { class: "banner info" }, el("span", { text: `${plural(r.removed_count, "file")} (${bytes(r.removed_bytes)}) ${del ? "deleted" : "moved to the Recycle Bin"}. Free space: ${bytes(r.disk_free_before)} → ${bytes(r.disk_free_after)}.` + (r.skipped.length + r.errors.length ? ` ${r.skipped.length + r.errors.length} skipped.` : "") })));
+    out.replaceChildren(el("div", { class: "banner info" }, el("span", { text: `${plural(r.removed_count, "file")} (${bytes(r.removed_bytes)}) ${del ? "deleted" : `moved to the ${BIN()}`}. Free space: ${bytes(r.disk_free_before)} → ${bytes(r.disk_free_after)}.` + (r.skipped.length + r.errors.length ? ` ${r.skipped.length + r.errors.length} skipped.` : "") })));
     toast("Clean up finished.");
-    $("bin-info").textContent = `Recycle Bin: ${bytes(r.recycle_bin_after.bytes)} in ${plural(r.recycle_bin_after.items, "item")}`;
+    $("bin-info").textContent = `${BIN()}: ${bytes(r.recycle_bin_after.bytes)} in ${plural(r.recycle_bin_after.items, "item")}`;
     $("bin-empty").disabled = !r.recycle_bin_after.items;
   } catch (e) { handleError(e); }
 };
 $("bin-empty").onclick = async () => {
-  if (!(await confirmDialog({ title: "Empty the Recycle Bin?", danger: true, word: "EMPTY", yes: "Empty",
-    body: "Everything in the Recycle Bin, from every app, is deleted permanently. This cannot be undone." }))) return;
+  if (!(await confirmDialog({ title: `Empty the ${BIN()}?`, danger: true, word: "EMPTY", yes: MAC() ? "Empty Trash" : "Empty",
+    body: `Everything in the ${BIN()}, from every app, is deleted permanently. This cannot be undone.` }))) return;
   try { const r = await api("/api/cleanup/empty-bin", { confirm: true });
-    toast(`Recycle Bin emptied. Freed ${bytes(r.bytes_before - r.bytes_after)}.`);
-    $("bin-info").textContent = `Recycle Bin: ${bytes(r.bytes_after)} in ${plural(r.items_after, "item")}`; $("bin-empty").disabled = !r.items_after; }
+    toast(`${BIN()} emptied. Freed ${bytes(r.bytes_before - r.bytes_after)}.`);
+    $("bin-info").textContent = `${BIN()}: ${bytes(r.bytes_after)} in ${plural(r.items_after, "item")}`; $("bin-empty").disabled = !r.items_after; }
   catch (e) { handleError(e); }
 };
 
@@ -973,7 +982,8 @@ async function loadAutomation() {
     const a = await api("/api/automation");
     const tidy = a.tasks.find((t) => /tidy/i.test(t.name)); const weekly = a.tasks.find((t) => /weekly/i.test(t.name));
     $("sched-daily").checked = !!tidy; $("sched-weekly").checked = !!weekly;
-    $("sched-text").textContent = tidy ? `On · next run ${tidy.next_run || "scheduled"}` : "Runs in the background with Windows Task Scheduler. No admin rights needed.";
+    $("sched-text").textContent = tidy ? `On · next run ${tidy.next_run || "scheduled"}`
+      : `Runs in the background with ${MAC() ? "macOS launchd" : "Windows Task Scheduler"}. No admin rights needed.`;
     showPending(a.pending);
   } catch (e) { handleError(e); }
 }
@@ -1060,7 +1070,9 @@ $("forget-all").onclick = async () => {
     try { await api("/api/learned/reset", { confirm: true }); toast("Forgotten."); loadSettingsPage(); } catch (e) { handleError(e); }
   }
 };
-$("ctx-menu").onchange = () => automation({ action: "context_menu", on: $("ctx-menu").checked }, $("ctx-menu").checked ? "Added to the right-click menu." : "Removed from the right-click menu.");
+$("ctx-menu").onchange = () => automation({ action: "context_menu", on: $("ctx-menu").checked }, MAC()
+  ? ($("ctx-menu").checked ? "Added to Finder Quick Actions." : "Removed from Finder Quick Actions.")
+  : ($("ctx-menu").checked ? "Added to the right-click menu." : "Removed from the right-click menu."));
 $("run-alias").onchange = () => automation({ action: "run_alias", on: $("run-alias").checked }, $("run-alias").checked ? "Type slothfile in Windows+R to open SlothFile." : "Windows+R shortcut removed.");
 async function loadShortcuts() {
   try { const a = await api("/api/automation"); $("ctx-menu").checked = a.context_menu; $("run-alias").checked = a.run_alias; } catch (e) {}
@@ -1110,7 +1122,8 @@ async function loadAI() {
 }
 $("ai-setup").onclick = async () => {
   if (!(await confirmDialog({ title: "Set up local AI?", yes: "Download and set up",
-    body: "SlothFile will install Ollama (from the official Windows package) and download Gemma 4 (about 4.3 GB) once. It runs entirely on this PC." }))) return;
+    body: MAC() ? "SlothFile will install Ollama with Homebrew (if Ollama is not installed yet) and download Gemma 4 (about 4.3 GB) once. It runs entirely on this Mac."
+      : "SlothFile will install Ollama (from the official Windows package) and download Gemma 4 (about 4.3 GB) once. It runs entirely on this PC." }))) return;
   $("ai-setup").disabled = true; $("ai-progress").classList.remove("hidden");
   const bar = $("ai-progress").querySelector(".progress");
   try {

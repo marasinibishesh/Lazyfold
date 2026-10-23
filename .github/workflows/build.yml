@@ -1,5 +1,7 @@
-# Tests on every push and pull request; on a version tag (v1.2.3) also builds
-# SlothFile.exe, packs SlothFile-Setup-<version>.exe and publishes a GitHub Release.
+# Tests on every push and pull request (Windows and macOS); on a version tag
+# (v1.2.3) also builds SlothFile.exe, packs SlothFile-Setup-<version>.exe and
+# publishes a GitHub Release, then adds SlothFile-<version>-mac.dmg (Apple
+# Silicon) and the Full editions of both to it.
 name: Test and build
 
 on:
@@ -181,3 +183,203 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: packaging/output-full/SlothFile-Setup-Full-*.exe
+
+  # macOS (Apple Silicon): the same tests on a Mac, then SlothFile.app in a .dmg.
+  test-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install SlothFile with test extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[content,dev]"
+      - name: Run tests
+        shell: bash
+        env:
+          SLOTHFILE_CI: "1"
+        run: |
+          set +e
+          python -m pytest -q -rfE 2>&1 | tee pytest-output.txt
+          code=${PIPESTATUS[0]}
+          # Show each failure as an annotation on the run page.
+          grep -E '^(FAILED|ERROR) ' pytest-output.txt | while IFS= read -r line; do echo "::error title=pytest::$line"; done
+          exit $code
+
+  # Runs after `build` so on tags the Windows job has already created the
+  # Release; this one only adds the .dmg to it.
+  build-macos:
+    needs: [test, test-macos, build]
+    runs-on: macos-14
+    permissions:
+      contents: write   # to attach the .dmg to a Release on tags
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Check the version
+        shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          # Same version rules as the Windows build jobs.
+          app_version=$(python -c "import slothfile; print(slothfile.__version__)")
+          version=$app_version
+          if [ "$REF_TYPE" = "tag" ]; then
+            if [[ ! "$REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::Tag '$REF_NAME' is not like v1.2.3 or v1.2.3-rc1"; exit 1
+            fi
+            if [ "${BASH_REMATCH[1]}" != "$app_version" ]; then
+              echo "::error::Tag $REF_NAME does not match slothfile.__version__ $app_version"; exit 1
+            fi
+            version=${REF_NAME#v}
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: "Install build tools (no PyTorch, the app does not bundle it)"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pywebview>=6.2" "pyinstaller>=6.22" "pypdf>=6.21.2" "pillow>=12" "pyobjc-framework-Cocoa>=10" "pyobjc-framework-Vision>=10"
+      - name: Write the third-party notices for the Mac build
+        run: python packaging/make_notices.py lean
+      - name: Build SlothFile.app
+        run: pyinstaller packaging/slothfile-mac.spec --noconfirm --distpath packaging/output/dist --workpath packaging/output/build
+      - name: Smoke-test the built app
+        shell: bash
+        run: |
+          app=packaging/output/dist/SlothFile.app
+          plutil -p "$app/Contents/Info.plist"
+          test -x "$app/Contents/MacOS/SlothFile" || { echo "::error::SlothFile is missing from Contents/MacOS"; exit 1; }
+          main=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$app/Contents/Info.plist")
+          [ "$main" = "SlothFile" ] || { echo "::error::CFBundleExecutable is $main, not SlothFile"; exit 1; }
+          exe="$app/Contents/MacOS/SlothFileCLI"
+          export SLOTHFILE_HOME="$RUNNER_TEMP/sf-home"
+          "$exe" --version
+          d="$RUNNER_TEMP/demo/Downloads"
+          "$exe" demo "$d"
+          "$exe" plan "$d" || { echo "::error::plan failed"; exit 1; }
+      - name: Make the .dmg
+        shell: bash
+        run: |
+          stage="$RUNNER_TEMP/dmg"
+          rm -rf "$stage" && mkdir -p "$stage"
+          ditto packaging/output/dist/SlothFile.app "$stage/SlothFile.app"
+          ln -s /Applications "$stage/Applications"
+          hdiutil create -volname SlothFile -srcfolder "$stage" -ov -format UDZO "packaging/output/SlothFile-$VERSION-mac.dmg"
+          ls -l packaging/output/*.dmg
+      - uses: actions/upload-artifact@v5
+        with:
+          name: SlothFile-mac
+          path: packaging/output/SlothFile-*-mac.dmg
+          if-no-files-found: error
+      - name: "Attach the .dmg to the release (tags only)"
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packaging/output/SlothFile-*-mac.dmg
+
+  # "Full" Mac edition: the app plus PyTorch, TabPFN and the TabPFN v2 weights.
+  build-macos-full:
+    needs: build-macos
+    runs-on: macos-14
+    timeout-minutes: 90
+    permissions:
+      contents: write   # to attach the .dmg to a Release on tags
+    env:
+      CKPT_NAME: tabpfn-v2-classifier-finetuned-zk73skhh.ckpt
+      CKPT_SHA256: cf8c519c01eaf1613ee91239006d57b1c806ff5f23ac1aeb1315ba1015210e49
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"   # 3.12.0 breaks frozen scipy; setup-python gives the latest 3.12.x
+      - name: Check the version
+        shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          # Same version rules as the Windows build jobs.
+          app_version=$(python -c "import slothfile; print(slothfile.__version__)")
+          version=$app_version
+          if [ "$REF_TYPE" = "tag" ]; then
+            if [[ ! "$REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::Tag '$REF_NAME' is not like v1.2.3 or v1.2.3-rc1"; exit 1
+            fi
+            if [ "${BASH_REMATCH[1]}" != "$app_version" ]; then
+              echo "::error::Tag $REF_NAME does not match slothfile.__version__ $app_version"; exit 1
+            fi
+            version=${REF_NAME#v}
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: "Install build tools with PyTorch and TabPFN"
+        run: |
+          python -m pip install --upgrade pip
+          # The PyPI torch wheel for macOS arm64 is the CPU/MPS build (no CUDA).
+          python -m pip install torch
+          python -m pip install tabpfn==9.2.0 "pywebview>=6.2" "pyinstaller>=6.22" "pypdf>=6.21.2" "pillow>=12" "pyobjc-framework-Cocoa>=10" "pyobjc-framework-Vision>=10"
+      - name: Cache the TabPFN v2 checkpoint
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/tabpfn
+          key: tabpfn-${{ env.CKPT_NAME }}
+      - name: Download the TabPFN v2 checkpoint from Hugging Face
+        shell: bash
+        run: |
+          dir="$RUNNER_TEMP/tabpfn"
+          mkdir -p "$dir"
+          ckpt="$dir/$CKPT_NAME"
+          if [ ! -f "$ckpt" ]; then
+            curl -fsSL --retry 3 --connect-timeout 30 --max-time 900 -o "$ckpt" "https://huggingface.co/Prior-Labs/TabPFN-v2-clf/resolve/main/$CKPT_NAME" \
+              || { rm -f "$ckpt"; echo "::error::checkpoint download failed"; exit 1; }
+          fi
+          hash=$(shasum -a 256 "$ckpt" | cut -d' ' -f1)
+          if [ "$hash" != "$CKPT_SHA256" ]; then
+            rm -f "$ckpt"; echo "::error::checkpoint SHA-256 $hash does not match $CKPT_SHA256"; exit 1
+          fi
+          echo "SLOTHFILE_TABPFN_CKPT=$ckpt" >> "$GITHUB_ENV"
+      - name: Write the third-party notices for the Mac Full build
+        run: python packaging/make_notices.py full
+      - name: Build the Full SlothFile.app
+        run: pyinstaller packaging/slothfile-mac-full.spec --noconfirm --distpath packaging/output-full/dist --workpath packaging/output-full/build
+      - name: Smoke-test the Full app (offline TabPFN prediction)
+        shell: bash
+        env:
+          HF_HUB_OFFLINE: "1"
+        run: |
+          app=packaging/output-full/dist/SlothFile.app
+          exe="$PWD/$app/Contents/MacOS/SlothFileCLI"
+          # Where sys._MEIPASS points in an .app (data is symlinked here from Contents/Resources).
+          ls -lL "$app/Contents/Frameworks/tabpfn_models/"
+          export SLOTHFILE_HOME="$RUNNER_TEMP/sf-home"
+          # An empty home with no tabpfn or Hugging Face cache: proves the bundled weights are used.
+          export HOME="$RUNNER_TEMP/empty-home"
+          export XDG_CACHE_HOME="$HOME/.cache"
+          mkdir -p "$HOME"
+          "$exe" --version
+          "$exe" predictor selftest || { echo "::error::predictor selftest failed"; exit 1; }
+          d="$RUNNER_TEMP/demo/Downloads"
+          "$exe" demo "$d"
+          "$exe" plan "$d" || { echo "::error::plan failed"; exit 1; }
+      - name: Make the Full .dmg
+        shell: bash
+        run: |
+          stage="$RUNNER_TEMP/dmg-full"
+          rm -rf "$stage" && mkdir -p "$stage"
+          ditto packaging/output-full/dist/SlothFile.app "$stage/SlothFile.app"
+          ln -s /Applications "$stage/Applications"
+          hdiutil create -volname SlothFile -srcfolder "$stage" -ov -format UDZO "packaging/output-full/SlothFile-Full-$VERSION-mac.dmg"
+          ls -l packaging/output-full/*.dmg
+      - uses: actions/upload-artifact@v5
+        with:
+          name: SlothFile-mac-Full
+          path: packaging/output-full/SlothFile-Full-*-mac.dmg
+          if-no-files-found: error
+      - name: "Attach the Full .dmg to the release (tags only)"
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packaging/output-full/SlothFile-Full-*-mac.dmg

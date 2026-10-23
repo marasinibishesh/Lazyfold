@@ -1,10 +1,12 @@
-"""Read-only lookup of installed programs (Windows "Apps & features" list), used
-to suggest that an installer in Downloads has already done its job."""
+"""Read-only lookup of installed programs (Windows "Apps & features" list, or
+the apps in /Applications on macOS), used to suggest that an installer in
+Downloads has already done its job."""
 
 from __future__ import annotations
 
 import os
 import re
+import sys
 from functools import lru_cache
 
 _UNINSTALL_KEYS = [
@@ -18,13 +20,19 @@ _NOISE = {"setup", "installer", "install", "win", "win32", "win64", "windows", "
           # Generic words that name no particular program (would match many unrelated apps).
           "driver", "drivers", "client", "launcher", "app", "apps", "tool", "tools", "helper", "host",
           "service", "runtime", "agent", "amd", "arm", "intel", "pro", "free", "plus", "lite", "desktop",
-          "manager", "utility", "suite", "studio", "player", "pack", "package", "redist", "redistributable"}
+          "manager", "utility", "suite", "studio", "player", "pack", "package", "redist", "redistributable",
+          # macOS installer names ("Firefox-mac-universal.dmg").
+          "mac", "macos", "osx", "darwin", "universal", "dmg", "pkg", "mpkg", "apple", "silicon"}
 _ARCH = re.compile(r"(?i)(amd64|x86_64|x64|x86|arm64|aarch64|win(32|64))")
 
 
 @lru_cache(maxsize=1)
 def installed_programs() -> frozenset[str]:
-    """Lower-cased DisplayName of every installed program (HKLM + HKCU), read only."""
+    """Lower-cased DisplayName of every installed program (HKLM + HKCU), read only.
+    On macOS: app names from /Applications and ~/Applications."""
+    if sys.platform == "darwin":
+        from . import macos
+        return macos.installed_apps()
     if os.name != "nt":
         return frozenset()
     import winreg

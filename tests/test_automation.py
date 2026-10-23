@@ -81,6 +81,7 @@ def test_documents_only_when_explicit():
 # notify
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour (schtasks, toast, .exe names, creation flags)")
 def test_notify_passes_text_only_through_env(monkeypatch):
     seen = {}
 
@@ -472,6 +473,7 @@ def _exe():
     return automation._system32("schtasks.exe")
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour (schtasks, toast, .exe names, creation flags)")
 def test_schedule_daily_args(tmp_path, fake_schtasks):
     folder = tmp_path / "Downloads"
     folder.mkdir()
@@ -485,6 +487,7 @@ def test_schedule_daily_args(tmp_path, fake_schtasks):
     assert automation.tidy_task_name(str(folder).upper()) == name or os.name != "nt"
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour (schtasks, toast, .exe names, creation flags)")
 def test_schedule_weekly_args(fake_schtasks):
     name = automation.schedule_weekly_summary("mon", "18:05")
     py = automation.gui_python()
@@ -511,6 +514,7 @@ def test_schedule_rejects_bad_day_and_long_command(tmp_path, fake_schtasks):
     assert fake_schtasks == []
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour (schtasks, toast, .exe names, creation flags)")
 def test_schedule_failure_raises(tmp_path, monkeypatch):
     monkeypatch.setattr(automation.subprocess, "run",
                         lambda args, **k: subprocess.CompletedProcess(args, 1, stdout="", stderr="ERROR: denied"))
@@ -518,6 +522,7 @@ def test_schedule_failure_raises(tmp_path, monkeypatch):
         automation.schedule_daily(tmp_path)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour (schtasks, toast, .exe names, creation flags)")
 def test_remove_task_only_ours(fake_schtasks):
     automation.remove_task("\\SlothFile\\Tidy 1234abcd")
     assert fake_schtasks == [[_exe(), "/Delete", "/TN", "SlothFile\\Tidy 1234abcd", "/F"]]
@@ -527,6 +532,7 @@ def test_remove_task_only_ours(fake_schtasks):
     assert len(fake_schtasks) == 1
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour (schtasks, toast, .exe names, creation flags)")
 def test_list_tasks_parses_and_filters(monkeypatch):
     csv_out = ('"\\SlothFile\\Tidy 1234abcd","10/23/2026 8:00:00 PM","Ready"\r\n'
                '"\\SlothFile\\Tidy 1234abcd","10/24/2026 8:00:00 PM","Ready"\r\n'

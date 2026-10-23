@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import time
 import uuid
 from dataclasses import dataclass
@@ -85,7 +86,10 @@ class PlanOptions:
 
 def _recycle_reason(rec: FileRecord, opts: PlanOptions) -> str | None:
     """Why an installer could go to the Recycle Bin, or None to keep it."""
-    if opts.recycle_old_installers_days is None or rec.ext not in (".exe", ".msi", ".msix", ".msixbundle"):
+    exts = (".exe", ".msi", ".msix", ".msixbundle")
+    if sys.platform == "darwin":
+        exts += (".dmg", ".pkg", ".mpkg")  # macOS installers (a zipped .app is not one)
+    if opts.recycle_old_installers_days is None or rec.ext not in exts:
         return None
     now = opts.now if opts.now is not None else time.time()
     age_days = (now - rec.mtime_ns / 1e9) / 86400

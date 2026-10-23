@@ -1,5 +1,6 @@
 """Draw SlothFile's brand assets from one design:
   packaging/slothfile.ico   multi-size app icon (16-256 px)
+  packaging/slothfile.icns  macOS app icon (16-1024 px), for the .app bundle
   packaging/slothfile.png   256 px icon
   packaging/logo-512.png    512 px logo
   packaging/splash.png      splash screen shown while the app starts
@@ -89,10 +90,18 @@ def splash(w: int = 640, h: int = 360) -> Image.Image:
     return img.resize((w, h), Image.LANCZOS)
 
 
+def write_icns(big: Image.Image, path: Path = HERE / "slothfile.icns") -> None:
+    """macOS icon: Pillow writes every ICNS size (16-1024 px, with @2x) from
+    one 1024 px image. Also runnable on its own, from the committed logo:
+    python -c "from make_brand import *; write_icns(Image.open(HERE / 'logo-512.png'))"."""
+    big.convert("RGBA").resize((1024, 1024), Image.LANCZOS).save(path, format="ICNS")
+
+
 if __name__ == "__main__":
     big = logo()
     big.save(HERE / "slothfile.ico", sizes=[(16, 16), (20, 20), (24, 24), (32, 32), (40, 40), (48, 48),
                                             (64, 64), (128, 128), (256, 256)])
+    write_icns(big)
     big.resize((256, 256), Image.LANCZOS).save(HERE / "slothfile.png")
     big.resize((512, 512), Image.LANCZOS).save(HERE / "logo-512.png")
     splash().save(HERE / "splash.png")

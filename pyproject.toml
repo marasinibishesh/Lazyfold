@@ -14,7 +14,10 @@ dependencies = []
 [project.optional-dependencies]
 # Text from PDFs and image metadata. Without them SlothFile still works on
 # file types and names; PDF content is simply not read.
-content = ["pypdf>=6.21.2", "pillow>=12"]
+# On a Mac, text in images is read with Apple's Vision framework (the
+# pyobjc bindings also bring Foundation, used to move files to the Trash).
+content = ["pypdf>=6.21.2", "pillow>=12", "pyobjc-framework-Cocoa>=10; sys_platform == 'darwin'", "pyobjc-framework-Vision>=10; sys_platform == 'darwin'"]
+# On a Mac, pywebview pulls in the pyobjc Cocoa/WebKit bindings it needs.
 desktop = ["pywebview>=6.2"]
 dev = ["pytest>=9"]
 # Approval predictor (TabPFN, Prior Labs License). Install CPU torch first so

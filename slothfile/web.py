@@ -101,7 +101,13 @@ def _home_folders() -> dict[str, str]:
     """The user's standard folders that exist (quick choices in the app).
     Uses the shell's known-folder locations, so redirected/OneDrive folders work."""
     out: dict[str, str] = {}
-    if os.name == "nt":
+    if sys.platform == "darwin":
+        home = Path.home()
+        for label in ("Downloads", "Desktop", "Documents"):
+            p = home / label
+            if p.is_dir():
+                out[label] = str(p)
+    elif os.name == "nt":
         import ctypes
         from ctypes import wintypes
         known = {"Downloads": "{374DE290-123F-4565-9164-39C4925E467B}",
@@ -129,6 +135,11 @@ def _home_folders() -> dict[str, str]:
     return out
 
 
+def platform_name() -> str:
+    """What the UI adapts its wording to: "mac" (Trash, Finder) or "windows"."""
+    return "mac" if sys.platform == "darwin" else "windows"
+
+
 def _str_list(value, name: str) -> list[str]:
     """Request fields are untrusted: a single string must never be read letter by letter."""
     if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
@@ -149,7 +160,8 @@ def _automation_state() -> dict:
     try:
         tasks = automation.list_tasks()
     except Exception as e:  # Task Scheduler unavailable: show it, don't fail the page
-        tasks = [{"name": "(could not read Task Scheduler)", "status": str(e)}]
+        where = "launchd" if sys.platform == "darwin" else "Task Scheduler"
+        tasks = [{"name": f"(could not read {where})", "status": str(e)}]
     return {"tasks": tasks, "context_menu": automation.context_menu_installed(),
             "run_alias": automation.run_alias_installed(), "pending": automation.pending()}
 
@@ -217,7 +229,7 @@ def make_handler(app: App):
                 from . import __version__
                 return self._json(200, {"initial_folder": app.initial_folder, "default_model": DEFAULT_MODEL,
                                         "runs": list_runs(), "version": __version__,
-                                        "home_folders": _home_folders()})
+                                        "home_folders": _home_folders(), "platform": platform_name()})
             if url.path == "/api/model":
                 try:
                     status = OllamaClient(DEFAULT_MODEL).health()

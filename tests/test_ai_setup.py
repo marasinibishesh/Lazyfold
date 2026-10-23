@@ -3,6 +3,7 @@ progress and the web endpoints. Everything external is faked: no winget, no
 real Ollama, no downloads."""
 
 import io
+import sys
 import json
 import socket
 import threading
@@ -151,6 +152,7 @@ class FakeProc:
         return 1 if self.exits else None
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows creation flags")
 def test_start_server_hidden_detached(monkeypatch, tmp_path):
     exe = touch(tmp_path / "ollama.exe")
     calls = []

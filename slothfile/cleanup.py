@@ -14,6 +14,12 @@ Safety model (each point has a test):
 - Recycling is the default. Permanent deletion and emptying the Recycle Bin
   are refused without an explicit confirmation flag.
 - Every removed file gets an fsync'ed journal line.
+
+On macOS the same model applies to a separate, explicit set of user-level
+folders ($TMPDIR, ~/Library/Logs, named browser and developer caches).
+Removing goes to the Trash through the same winshell.recycle path. Roots must
+be inside the home folder or the per-user $TMPDIR; ~/Library/Caches as a whole,
+Safari, Mail, Photos, iCloud, /Library, /System and /private/var are refused.
 """
 
 from __future__ import annotations
@@ -23,6 +29,7 @@ import json
 import os
 import re
 import stat
+import sys
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -186,8 +193,131 @@ def _browser(key: str, label: str, base: str, exe: str, app: str) -> Location:
         blocked_by_processes=frozenset({exe}), app_name=app)
 
 
+def _is_mac() -> bool:
+    return sys.platform == "darwin"
+
+
+# ------------------------------------------------------------- macOS locations
+
+CRASH_REPORT_EXT = {".ips", ".crash", ".diag", ".spin", ".hang"}
+
+
+def _is_crash_report(name: str, depth: int) -> bool:
+    return _ext(name) in CRASH_REPORT_EXT
+
+
+def _in_mac_tmpdir(p: Path) -> bool:
+    """True for the per-user temporary folder /private/var/folders/xx/yyyy/T
+    or anything inside it (checked on the canonical path's parts)."""
+    parts = Path(p).parts
+    for i in range(len(parts) - 3):
+        if parts[i] == "var" and i + 4 < len(parts) and parts[i + 1] == "folders" and parts[i + 4] == "T":
+            return True
+    return False
+
+
+def _mac_temp_roots() -> list[Path]:
+    """$TMPDIR, canonical, and only when it really is the per-user
+    /var/folders/../T folder (a TMPDIR pointing at home or / is ignored)."""
+    val = os.environ.get("TMPDIR")
+    if not val:
+        return []
+    p = canonical(val)
+    parts = p.parts
+    if len(parts) >= 5 and parts[-1] == "T" and parts[-4] == "folders" and parts[-5] == "var":
+        return [p]
+    return []
+
+
+def _mac_browser(key: str, label: str, cache: str, support: str, procs: frozenset[str], app: str) -> Location:
+    """Chromium browsers on macOS keep the HTTP cache under ~/Library/Caches/<base>/<profile>/Cache
+    and the compiled-script / GPU caches in the profile under Application Support."""
+    return Location(
+        key, label,
+        f"Copies of web pages, scripts and images {app} keeps to load sites faster. They are "
+        f"re-downloaded as needed (sites load a bit slower at first). Cookies, history, saved "
+        f"passwords and settings are not touched.",
+        (f"~/Library/Caches/{cache}/*/Cache/Cache_Data", f"~/Library/Caches/{cache}/*/Code Cache",
+         f"~/Library/Application Support/{support}/*/Code Cache",
+         f"~/Library/Application Support/{support}/*/GPUCache"),
+        _any_file, min_age_hours=0, selected_by_default=False, blocked_by_processes=procs, app_name=app)
+
+
+def mac_locations() -> list[Location]:
+    """macOS user-level locations. Each root is a named folder below the home
+    folder (or $TMPDIR); nothing broader is ever a root."""
+    return [
+        *temp_locations(_mac_temp_roots),
+        Location("mac_crash_reports", "Crash reports",
+                 "Reports macOS saved when an app crashed or hung (.ips, .crash, .diag, .spin, .hang). "
+                 "Only needed to report that problem to a developer.",
+                 ("~/Library/Logs/DiagnosticReports",), _is_crash_report),
+        Location("mac_logs", "App logs",
+                 "Diagnostic logs (.log) apps write in your Library. Useful only when troubleshooting "
+                 "a recent problem.",
+                 ("~/Library/Logs",), _is_log, prune_dirs=frozenset({"diagnosticreports"})),
+        _mac_browser("chrome_cache", "Google Chrome cache", "Google/Chrome", "Google/Chrome",
+                     frozenset({"google chrome"}), "Google Chrome"),
+        _mac_browser("brave_cache", "Brave cache", "BraveSoftware/Brave-Browser", "BraveSoftware/Brave-Browser",
+                     frozenset({"brave browser"}), "Brave"),
+        _mac_browser("edge_cache", "Microsoft Edge cache", "Microsoft Edge", "Microsoft Edge",
+                     frozenset({"microsoft edge"}), "Microsoft Edge"),
+        Location("firefox_cache", "Firefox cache",
+                 "Copies of web pages, scripts and images Firefox keeps to load sites faster. They are "
+                 "re-downloaded as needed. Cookies, history, saved passwords and settings are not touched.",
+                 ("~/Library/Caches/Firefox/Profiles/*/cache2",), _any_file, min_age_hours=0,
+                 selected_by_default=False, blocked_by_processes=frozenset({"firefox"}), app_name="Firefox"),
+        Location("dev_cache", "Developer package caches",
+                 "Downloaded packages kept by pip, npm, Yarn and Homebrew. They are re-downloaded the "
+                 "next time they are needed.",
+                 ("~/Library/Caches/pip", "~/.npm/_cacache", "~/Library/Caches/Yarn",
+                  "~/Library/Caches/Homebrew/downloads"),
+                 _any_file, selected_by_default=False),
+    ]
+
+
+# Below the home folder: never a root, never inside a root (lower-case parts).
+_MAC_FORBIDDEN_SUBTREES = (
+    ("library", "safari"), ("library", "containers", "com.apple.safari"),
+    ("library", "caches", "com.apple.safari"), ("library", "mail"), ("library", "containers", "com.apple.mail"),
+    ("library", "mobile documents"), ("library", "cloudstorage"), ("library", "photos"),
+    ("library", "application support", "clouddocs"), ("library", "keychains"), ("library", "messages"),
+    ("pictures",), ("documents",), ("desktop",), ("downloads",), ("movies",), ("music",),
+)
+# Too broad to be a root by themselves.
+_MAC_BROAD = {(), ("library",), ("library", "caches"), ("library", "application support"),
+              ("library", "containers"), ("library", "group containers")}
+
+
+def _mac_root_refusal(root: Path) -> str | None:
+    """macOS roots must be a specific folder below the home folder, or the
+    per-user $TMPDIR. /System, /Library, /private/var (other than TMPDIR),
+    ~/Library/Caches as a whole and the folders of Safari, Mail, Photos and
+    iCloud are always refused."""
+    home = canonical(Path.home())
+    nr, nh = os.path.normcase(str(root)), os.path.normcase(str(home))
+    try:
+        if os.path.commonpath([nr, nh]) == nr:
+            return "contains the home folder"
+    except ValueError:
+        pass
+    if is_within(home, root):
+        rel = tuple(p.lower() for p in Path(os.path.relpath(root, home)).parts)
+        if rel in _MAC_BROAD:
+            return "too broad a folder"
+        for bad in _MAC_FORBIDDEN_SUBTREES:
+            if rel[:len(bad)] == bad:
+                return "a personal or system app folder"
+        return None
+    if _in_mac_tmpdir(root):
+        return None
+    return "outside your user folders"
+
+
 def default_locations() -> list[Location]:
     """User-level locations only. Fresh list each call (env is read at scan time)."""
+    if _is_mac():
+        return mac_locations()
     return [
         *temp_locations(),
         Location("crashdumps", "App crash dumps",
@@ -258,7 +388,11 @@ def _expand_with_base(template: str) -> list[tuple[Path, Path]]:
     below it must be a real folder, so a junction such as %LOCALAPPDATA%\\NVIDIA
     pointing into Documents is refused rather than followed."""
     m = _LEADING_VAR.match(template)
-    if m:
+    if template.startswith("~/"):
+        # macOS templates: the home folder is the trusted base, like an env var's value.
+        base = canonical(Path.home())
+        rest = template[2:]
+    elif m:
         val = os.environ.get(m.group(1))
         rest = os.path.expandvars(m.group(2))
         if not val or "%" in rest:
@@ -292,6 +426,8 @@ def _root_refusal(root: Path) -> str | None:
     nr = os.path.normcase(str(root))
     if root.parent == root:
         return "drive root"
+    if _is_mac():
+        return _mac_root_refusal(root)
     for name, guard in (("home", Path.home()), ("Windows", Path(os.environ.get("SystemRoot", r"C:\Windows")))):
         ng = os.path.normcase(str(canonical(guard)))
         try:
@@ -793,10 +929,11 @@ def _recycle_many(cands: list[Candidate], key: str, j: Journal, result: CleanupR
 
 
 def empty_recycle_bin_confirmed(confirm: bool) -> dict[str, int]:
-    """Empty every Recycle Bin. Irreversible, so it is its own action with its
-    own explicit confirmation and journal entry."""
+    """Empty every Recycle Bin (macOS: Empty Trash). Irreversible, so it is its
+    own action with its own explicit confirmation and journal entry."""
     if confirm is not True:
-        raise ValueError("emptying the Recycle Bin is permanent and needs explicit confirmation")
+        what = "the Trash" if _is_mac() else "the Recycle Bin"
+        raise ValueError(f"emptying {what} is permanent and needs explicit confirmation")
     before = _bin_info()
     path = _cleanup_dir() / "recycle-bin.jsonl"
     path.touch(exist_ok=True)

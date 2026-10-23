@@ -1,6 +1,6 @@
 # SlothFile
 
-**A Windows app that tidies your messy Downloads folder and frees up disk space — safely, on your own PC.**
+**A Windows and Mac app that tidies your messy Downloads folder and frees up disk space — safely, on your own PC.**
 
 Created by **[Bishesh Marasini](https://github.com/marasinibishesh)**.
 
@@ -50,6 +50,21 @@ Gemma runs locally through [Ollama](https://ollama.com) (*Settings → Local AI 
 4. Open **SlothFile** from the Start menu.
 
 Needs Windows 10 or 11 (64-bit). No administrator rights are needed.
+
+### On a Mac
+
+1. From the same release, download `SlothFile-<version>-mac.dmg` (or `SlothFile-Full-<version>-mac.dmg` for *Smart predictions*). It needs an Apple Silicon Mac (M1 or newer) with macOS 11 or later.
+2. Open the .dmg and drag **SlothFile** onto **Applications**.
+3. The first time, **right-click SlothFile → Open → Open** (the app is not signed or notarized by Apple). If macOS still refuses, go to **System Settings → Privacy & Security** and click **Open Anyway**.
+
+What's different on a Mac:
+
+- Removed files go to the **Trash** instead of the Recycle Bin.
+- The right-click menu entry is a **Finder Quick Action**, and the quick shortcut is **Spotlight** (⌘ Space → `SlothFile`) instead of Windows+R.
+- Scheduled tidies run through macOS's own scheduler (launchd).
+- To uninstall, drag SlothFile from Applications to the Trash. Settings and undo history are in `~/Library/Application Support/SlothFile`.
+
+Intel Macs: [run from source](#run-from-source). The Mac app is built and tested automatically on GitHub's macOS machines.
 
 ## 2. Use it
 
@@ -120,6 +135,16 @@ Optional Smart predictions in a source install:
 .\.venv\Scripts\python -m pip install -e ".[predict]"
 ```
 
+On a Mac (Apple Silicon or Intel), the same in Terminal:
+
+```bash
+git clone https://github.com/marasinibishesh/SlothFile.git
+cd SlothFile
+python3 -m venv .venv
+.venv/bin/python -m pip install -e ".[content,desktop]"
+.venv/bin/slothfile desktop
+```
+
 Everything is also available on the command line — run `.\.venv\Scripts\slothfile --help`. The installed app includes the same commands as `SlothFileCLI.exe`.
 
 ### Run the tests
@@ -141,7 +166,7 @@ winget install -e --id JRSoftware.InnoSetup --scope user
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" packaging\slothfile.iss
 ```
 
-The installer appears in `packaging\output\`. GitHub Actions builds both installers automatically and attaches them to a release whenever a version tag such as `v0.3.0` is pushed (see [`.github/workflows/build.yml`](.github/workflows/build.yml)).
+The installer appears in `packaging\output\`. On a Mac, `pyinstaller packaging/slothfile-mac.spec --noconfirm --distpath packaging/output/dist --workpath packaging/output/build` builds `SlothFile.app`; its command line is `SlothFile.app/Contents/MacOS/SlothFileCLI`. GitHub Actions builds both installers automatically and attaches them to a release whenever a version tag such as `v0.3.0` is pushed (see [`.github/workflows/build.yml`](.github/workflows/build.yml)).
 
 ---
 

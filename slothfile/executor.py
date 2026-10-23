@@ -2,7 +2,8 @@
 
 Guarantees (each one has a test):
 - Nothing is deleted and nothing is overwritten: moves use a primitive that
-  fails if the destination exists (os.rename on Windows, link+unlink elsewhere).
+  fails if the destination exists (os.rename on Windows, renamex_np with
+  RENAME_EXCL on macOS, link+unlink elsewhere).
 - Every source is re-fingerprinted right before it moves; a file that changed
   since the preview is skipped.
 - Every destination is re-validated against the root and the category table,
@@ -17,6 +18,7 @@ import errno
 import os
 import re
 import stat
+import sys
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -86,7 +88,11 @@ class RunReport:
 
 def safe_move(src: Path, dst: Path) -> None:
     """Move without ever replacing an existing destination."""
-    if os.name == "nt":
+    if sys.platform == "darwin":
+        from . import macos
+        if macos.rename_excl(src, dst):  # atomic, EEXIST if taken, no hard links needed
+            return
+    elif os.name == "nt":
         os.rename(src, dst)  # raises FileExistsError if dst exists; same-volume only
         return
     try:
@@ -243,10 +249,14 @@ def apply_plan(plan: Plan, *, run_id: str | None = None, interrupt_after: int | 
 
 
 _INSTALLER_MAGIC = {".exe": (b"MZ",), ".msi": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
-                    ".msix": (b"PK\x03\x04",), ".msixbundle": (b"PK\x03\x04",)}
+                    ".msix": (b"PK\x03\x04",), ".msixbundle": (b"PK\x03\x04",),
+                    ".pkg": (b"xar!",), ".mpkg": (b"xar!",)}  # macOS flat packages are xar archives
 
 
 def _is_installer_file(path: Path) -> bool:
+    if path.suffix.lower() == ".dmg":
+        from .sniff import is_dmg
+        return is_dmg(path)  # disk images end in a "koly" trailer
     magic = _INSTALLER_MAGIC.get(path.suffix.lower())
     if not magic:
         return False
@@ -288,6 +298,14 @@ def _recycle_one(root: Path, i: int, p: Proposal, j: Journal, allowed: bool) -> 
     if err or os.path.lexists(src):
         j.write({"t": "fail", "op": i, "error": err or "still present after recycling"})
         return OpResult(p.rel_path, None, "failed", err or "still present after recycling")
+    if sys.platform == "darwin":
+        # Journal exactly where the Trash put it, so undo restores that item.
+        rec: dict = {"t": "recycled", "op": i}
+        trash_path = winshell.take_trash_path(src)
+        if trash_path:
+            rec["trash_path"] = trash_path
+        j.write(rec)
+        return OpResult(p.rel_path, None, "recycled", "in the Trash")
     j.write({"t": "recycled", "op": i})
     return OpResult(p.rel_path, None, "recycled", "in the Recycle Bin")
 
@@ -383,6 +401,8 @@ def _ops_state(recs: list[dict]) -> dict[int, dict]:
             continue
         elif t == "recycled":
             ops[op]["state"] = "done"
+            if isinstance(r.get("trash_path"), str) and r["trash_path"]:
+                ops[op]["trash_path"] = r["trash_path"]  # macOS: the item's place in the Trash
         elif t in ("done", "fail"):
             ops[op]["state"] = "done" if t == "done" and not r.get("escaped") else (
                 "escaped" if t == "done" else "failed")
@@ -399,6 +419,9 @@ def _ops_state(recs: list[dict]) -> dict[int, dict]:
             ops[op]["state"] = "undone"
         elif t == "undo_fail":
             ops[op]["state"] = "done"
+            if "trash_path" in r:  # macOS: the item went back to the Trash, maybe under a new name
+                tp = r.get("trash_path")
+                ops[op]["trash_path"] = tp if isinstance(tp, str) and tp else None
     return ops
 
 
@@ -608,8 +631,66 @@ def _undo_unpack(root: Path, i: int, op: dict, zip_path: Path, j: Journal, repor
     return True
 
 
+def _undo_recycle_mac(root: Path, i: int, op: dict, j: Journal) -> OpResult:
+    """macOS: put back exactly the item the journal says the Trash holds, after
+    checking it is still the file that was recycled (nothing is moved otherwise)."""
+    from . import macos, winshell
+    src = root / op["src"]
+    if os.path.lexists(src):
+        j.write({"t": "undo_skip", "op": i, "reason": "a file with the original name exists"})
+        return OpResult(op["src"], op["src"], "skipped", "a file with the original name exists")
+    trashed = op.get("trash_path")
+    if not trashed:
+        # Location unknown (Finder fallback, or recovered after a crash): look for
+        # the original name in the Trash, verify, and send a wrong copy back.
+        j.write({"t": "undo_intent", "op": i})
+        try:
+            ok = winshell.restore_from_recycle_bin(src)
+        except (OSError, NotImplementedError):
+            ok = False
+        return _finish_undo_recycle_mac(i, op, j, src, ok)
+    tp = Path(trashed)
+    if not macos._in_trash_dir(tp) or not _regular_file(tp) or not _fp_matches(tp, op["fp"]):
+        reason = ("the file is no longer in the Trash" if not os.path.lexists(tp)
+                  else "the item in the Trash is not the file that was recycled")
+        j.write({"t": "undo_fail", "op": i, "error": reason})
+        return OpResult(op["src"], op["src"], "failed", reason + "; open the Trash and choose Put Back")
+    j.write({"t": "undo_intent", "op": i})
+    try:
+        ok = macos.restore_from_trash(tp, src)
+    except OSError:
+        ok = False
+    return _finish_undo_recycle_mac(i, op, j, src, ok)
+
+
+def _finish_undo_recycle_mac(i: int, op: dict, j: Journal, src: Path, ok: bool) -> OpResult:
+    """Verify a restore; a different copy goes straight back to the Trash."""
+    from . import winshell
+    if ok and _regular_file(src) and _fp_matches(src, op["fp"]):
+        j.write({"t": "undone", "op": i})
+        return OpResult(op["src"], op["src"], "restored", "restored from the Trash")
+    if ok and _regular_file(src):
+        try:
+            back = winshell.recycle([src]).get(str(src)) is None
+        except (OSError, NotImplementedError):
+            back = False
+        rec = {"t": "undo_fail", "op": i, "error": "the Trash returned a different copy", "returned_to_bin": back}
+        if back:
+            rec["trash_path"] = winshell.take_trash_path(src)
+        j.write(rec)
+        return OpResult(op["src"], op["src"], "failed",
+                        "the Trash held a different file with the same name"
+                        + ("; it was put back. " if back else "; it is now in the folder. ")
+                        + "Find the original in the Trash and choose Put Back")
+    j.write({"t": "undo_fail", "op": i, "error": "could not restore automatically"})
+    return OpResult(op["src"], op["src"], "failed",
+                    "could not restore automatically; open the Trash and choose Put Back")
+
+
 def _undo_recycle(root: Path, i: int, op: dict, j: Journal) -> OpResult:
     """Best effort: ask the Recycle Bin to restore the installer, then verify it."""
+    if sys.platform == "darwin":
+        return _undo_recycle_mac(root, i, op, j)
     from . import winshell
     src = root / op["src"]
     if os.path.lexists(src):

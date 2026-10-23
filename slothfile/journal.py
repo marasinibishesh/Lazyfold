@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterator
@@ -19,6 +20,8 @@ def state_path() -> Path:
     env = os.environ.get("SLOTHFILE_HOME")
     if env:
         return Path(env)
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "SlothFile"
     if os.name == "nt":
         return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "SlothFile"
     return Path.home() / ".local" / "state" / "slothfile"
