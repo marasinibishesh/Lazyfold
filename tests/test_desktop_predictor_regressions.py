@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from slothfile import automation, desktop, predict, reviewlog, settings
+from lazyfold import automation, desktop, predict, reviewlog, settings
 
 
 # D1: the running app announces itself so the uninstaller can ask to close it
@@ -28,7 +28,7 @@ def test_app_mutex_is_held(monkeypatch):
 
 
 def test_installer_declares_the_same_mutex():
-    iss = (Path(__file__).resolve().parent.parent / "packaging" / "slothfile.iss").read_text(encoding="utf-8")
+    iss = (Path(__file__).resolve().parent.parent / "packaging" / "lazyfold.iss").read_text(encoding="utf-8")
     assert f"AppMutex={desktop.APP_MUTEX}" in iss
     assert "SuppressibleMsgBox" in iss and "WizardSilent()" in iss  # D0/D2: silent installs never hang
 
@@ -36,9 +36,9 @@ def test_installer_declares_the_same_mutex():
 # D3: checking/removing the Win+R alias must not create the data folder
 def test_alias_checks_do_not_create_state(monkeypatch, tmp_path):
     home = tmp_path / "never-created"
-    monkeypatch.setenv("SLOTHFILE_HOME", str(home))
-    automation.uninstall_run_alias(base=r"Software\SlothFileTest\noalias")
-    assert automation.run_alias_installed(base=r"Software\SlothFileTest\noalias") is False
+    monkeypatch.setenv("LAZYFOLD_HOME", str(home))
+    automation.uninstall_run_alias(base=r"Software\LazyfoldTest\noalias")
+    assert automation.run_alias_installed(base=r"Software\LazyfoldTest\noalias") is False
     assert not home.exists()
 
 
@@ -64,9 +64,9 @@ def test_no_parallel_fits_after_timeout(monkeypatch):
 
 # D6: turning the predictor off stops collecting history; reset clears it
 def test_opt_out_stops_review_history(demo):
-    from slothfile.planner import build_plan
-    from slothfile.scanner import scan_folder
-    from slothfile.service import execute, save_plan
+    from lazyfold.planner import build_plan
+    from lazyfold.scanner import scan_folder
+    from lazyfold.service import execute, save_plan
     root, _ = demo
     settings.save_settings({"use_predictor": False})
     recs, _ = scan_folder(root)
@@ -77,7 +77,7 @@ def test_opt_out_stops_review_history(demo):
 
 
 def test_learned_reset_also_clears_review_history(monkeypatch):
-    from slothfile import cli
+    from lazyfold import cli
     reviewlog.log_path().write_text(json.dumps({"v": 1, "plan_id": "p", "label": 1, "features": {}}) + "\n",
                                     encoding="utf-8")
     cli.main(["learned", "--reset"])

@@ -12,15 +12,15 @@ from pathlib import Path
 import pytest
 
 from conftest import snapshot, write_old
-from slothfile import executor, journal, pathsafe
-from slothfile.cli import _safe
-from slothfile.demo import FAKE_EXE, make_pdf
-from slothfile.executor import apply_plan, incomplete_runs, recover, undo_run
-from slothfile.llm import ModelError, OllamaClient, parse_advice
-from slothfile.models import Plan
-from slothfile.planner import build_plan
-from slothfile.scanner import scan_folder
-from slothfile.service import apply_edits
+from lazyfold import executor, journal, pathsafe
+from lazyfold.cli import _safe
+from lazyfold.demo import FAKE_EXE, make_pdf
+from lazyfold.executor import apply_plan, incomplete_runs, recover, undo_run
+from lazyfold.llm import ModelError, OllamaClient, parse_advice
+from lazyfold.models import Plan
+from lazyfold.planner import build_plan
+from lazyfold.scanner import scan_folder
+from lazyfold.service import apply_edits
 
 WINDOWS = sys.platform == "win32"
 
@@ -204,7 +204,7 @@ def test_duplicate_original_prefers_name_without_copy_marker(tmp_path):
     assert dups == {"report (1).pdf", "report - Copy.pdf"}
 
 
-# C11: SlothFile refuses to organize its own state folder
+# C11: Lazyfold refuses to organize its own state folder
 def test_state_folder_is_refused(home):
     (home / "plans").mkdir(parents=True, exist_ok=True)
     write_old(home / "plans" / "x.json", "{}")
@@ -242,7 +242,7 @@ def test_broken_model_server_raises_model_error(body):
     s = _garbage_server(body)
     try:
         client = OllamaClient(base_url=f"http://127.0.0.1:{s.server_address[1]}", timeout=5)
-        from slothfile.models import FileRecord
+        from lazyfold.models import FileRecord
         rec = FileRecord("a.pdf", "a.pdf", ".pdf", 1, 1, "2026-01-01", text="invoice")
         with pytest.raises(ModelError):
             client.advise(rec)
@@ -271,7 +271,7 @@ def test_nan_confidence_falls_back_to_rules():
 def test_folder_picker_is_isolated(tmp_path, monkeypatch):
     import http.client
     from http.server import ThreadingHTTPServer as Srv
-    from slothfile import web
+    from lazyfold import web
 
     seen = {}
 
@@ -291,7 +291,7 @@ def test_folder_picker_is_isolated(tmp_path, monkeypatch):
     try:
         c = http.client.HTTPConnection("127.0.0.1", port)
         c.request("POST", "/api/pick-folder", body="{}",
-                  headers={"Content-Type": "application/json", "X-SlothFile-Token": app.token})
+                  headers={"Content-Type": "application/json", "X-Lazyfold-Token": app.token})
         body = json.loads(c.getresponse().read())
     finally:
         httpd.shutdown()

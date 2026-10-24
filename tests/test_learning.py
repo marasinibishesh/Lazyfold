@@ -1,11 +1,11 @@
 import json
 from pathlib import Path
 
-from slothfile import learning
-from slothfile.journal import state_dir
-from slothfile.learning import apply_learned, forget_rule, learned_rules, record_review, reset_learning
-from slothfile.models import FileRecord, Plan, Proposal
-from slothfile.rules import Decision
+from lazyfold import learning
+from lazyfold.journal import state_dir
+from lazyfold.learning import apply_learned, forget_rule, learned_rules, record_review, reset_learning
+from lazyfold.models import FileRecord, Plan, Proposal
+from lazyfold.rules import Decision
 
 
 def rec(name: str, host: str | None = None, **kw) -> FileRecord:

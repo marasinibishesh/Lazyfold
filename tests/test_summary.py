@@ -1,8 +1,8 @@
 import json
 from datetime import datetime, timedelta
 
-from slothfile import summary
-from slothfile.journal import runs_dir, state_dir
+from lazyfold import summary
+from lazyfold.journal import runs_dir, state_dir
 
 NOW = datetime(2026, 10, 22, 18, 0, 0)
 
@@ -124,14 +124,14 @@ def test_torn_and_unknown_records_tolerated():
 
 def test_format_zero_and_headline():
     s = summary.summarize(7, now=NOW)
-    assert summary.format_summary(s) == "Nothing to tidy this week - your sloth rested."
+    assert summary.format_summary(s) == "Nothing to tidy this week - you got to rest."
     s = dict(s, files_organized=140, files_renamed=22,
              cleanup_files=5, cleanup_bytes={"recycle": 0, "delete": int(3.2 * 1024 ** 3)},
              by_folder={"Documents": 100, "Images": 40})
     head = summary.format_summary(s).splitlines()[0]
-    assert head == "This week SlothFile organized 140 files, renamed 22 and freed 3.2 GB."
+    assert head == "This week Lazyfold organized 140 files, renamed 22 and freed 3.2 GB."
     month = summary.format_summary(dict(s, days=30))
-    assert month.startswith("This month SlothFile organized 140 files")
+    assert month.startswith("This month Lazyfold organized 140 files")
     assert "Documents 100, Images 40" in month
 
 

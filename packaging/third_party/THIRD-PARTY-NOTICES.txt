@@ -1,7 +1,7 @@
-SlothFile - third-party notices
+Lazyfold - third-party notices
 ================================================
 
-SlothFile is (c) 2026 Bishesh Marasini and released under the MIT License.
+Lazyfold is (c) 2026 Bishesh Marasini and released under the MIT License.
 
 The app also bundles the Python runtime (PSF License) and these packages. Their
 license texts are inside the app's _internal folder (in each *.dist-info folder) where

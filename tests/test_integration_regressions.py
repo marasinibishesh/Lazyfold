@@ -11,14 +11,14 @@ from pathlib import Path
 import pytest
 
 from conftest import snapshot, write_old
-from slothfile import executor, learning, winshell
-from slothfile.demo import FAKE_EXE
-from slothfile.executor import apply_plan, recover, undo_run
-from slothfile.models import FileRecord, Plan
-from slothfile.planner import PlanOptions, build_plan
-from slothfile.rules import Decision
-from slothfile.scanner import scan_folder
-from slothfile.service import execute, load_plan, save_plan
+from lazyfold import executor, learning, winshell
+from lazyfold.demo import FAKE_EXE
+from lazyfold.executor import apply_plan, recover, undo_run
+from lazyfold.models import FileRecord, Plan
+from lazyfold.planner import PlanOptions, build_plan
+from lazyfold.rules import Decision
+from lazyfold.scanner import scan_folder
+from lazyfold.service import execute, load_plan, save_plan
 from test_features import fake_bin  # noqa: F401 - fixture
 
 
@@ -49,7 +49,7 @@ def test_unpacked_files_kept_when_zip_was_deleted(tmp_path):
 # I1/I2: crash while unpacking -> recover + undo leave the folder exactly as before
 @pytest.mark.parametrize("crash_at", ["journal", "utime", "mkdirs"])
 def test_crash_during_unpack_is_fully_undone(tmp_path, monkeypatch, crash_at):
-    from slothfile import archives, journal
+    from lazyfold import archives, journal
     root = tmp_path / "dl"
     write_old(root / "proj.zip", make_zip({"a.txt": b"A", "d/b.txt": b"B", "c.txt": b"C"}))
     before = snapshot(root)
@@ -79,7 +79,7 @@ def test_crash_during_unpack_is_fully_undone(tmp_path, monkeypatch, crash_at):
     with pytest.raises(KeyboardInterrupt):
         apply_plan(plan)
     monkeypatch.undo()
-    os.environ["SLOTHFILE_HOME"] = str(tmp_path / "state")  # monkeypatch.undo also reset the env
+    os.environ["LAZYFOLD_HOME"] = str(tmp_path / "state")  # monkeypatch.undo also reset the env
     recover(root)
     [run] = [p.stem for p in executor.runs_dir().glob("*.jsonl")]
     undo_run(run)
@@ -189,7 +189,7 @@ def _plan_with(root, name, host):
 
 
 def test_refused_requests_do_not_teach(tmp_path):
-    from slothfile.pathsafe import UnsafePath
+    from lazyfold.pathsafe import UnsafePath
     for i in range(2):
         root = tmp_path / f"d{i}"
         plan = _plan_with(root, f"t{i}.txt", "evil.example")
@@ -216,7 +216,7 @@ def test_api_auto_respects_lock(demo):
     import http.client
     import threading
     from http.server import ThreadingHTTPServer
-    from slothfile.web import App, make_handler
+    from lazyfold.web import App, make_handler
     root, _ = demo
     app = App(str(root))
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
@@ -227,14 +227,14 @@ def test_api_auto_respects_lock(demo):
         app.lock.acquire()
         c = http.client.HTTPConnection("127.0.0.1", port)
         c.request("POST", "/api/auto", body=json.dumps({"folder": str(root)}),
-                  headers={"Content-Type": "application/json", "X-SlothFile-Token": app.token})
+                  headers={"Content-Type": "application/json", "X-Lazyfold-Token": app.token})
         assert c.getresponse().status == 409
         app.lock.release()
         # I10: a JSON body that is not an object is a clean 400, not a crash
         for body in ("[1,2]", "5", '"x"', "null", "true"):
             c = http.client.HTTPConnection("127.0.0.1", port)
             c.request("POST", "/api/apply", body=body,
-                      headers={"Content-Type": "application/json", "X-SlothFile-Token": app.token})
+                      headers={"Content-Type": "application/json", "X-Lazyfold-Token": app.token})
             assert c.getresponse().status == 400
     finally:
         httpd.shutdown()
@@ -256,14 +256,14 @@ def test_keep_override_on_recycle_row_recycles_nothing(tmp_path, fake_bin):
 # I12: generic installer names don't claim "already installed"
 @pytest.mark.parametrize("name", ["driver_setup.exe", "Client.exe", "Launcher.exe", "setup.exe", "amd64-x64.exe"])
 def test_generic_installer_names_do_not_match(name):
-    from slothfile.installed import matching_program
+    from lazyfold.installed import matching_program
     assert matching_program(name, frozenset({"realtek audio driver", "zoom client", "epic games launcher"})) is None
 
 
 # I14: OCR never reads a PDF hiding behind another extension
 def test_ocr_skips_extension_mismatch(tmp_path, monkeypatch):
-    from slothfile import ocr
-    from slothfile.demo import make_pdf
+    from lazyfold import ocr
+    from lazyfold.demo import make_pdf
     called = []
     monkeypatch.setattr(ocr, "ocr_available", lambda: True)
     monkeypatch.setattr(ocr, "ocr_pdf", lambda p, w: called.append(p) or "text")

@@ -8,7 +8,7 @@ dist/
 # local evaluation output and demo folders
 results/*.local.json
 demo-downloads/
-.slothfile/
+.lazyfold/
 
 .venv-build/
 results_local/

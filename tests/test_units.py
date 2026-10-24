@@ -7,13 +7,13 @@ import zipfile
 import pytest
 
 from conftest import write_old
-from slothfile import extract, llm, pathsafe, rules, sniff
-from slothfile.demo import FAKE_EXE, make_docx, make_pdf
-from slothfile.engine import HybridClassifier, grounded, make_classifier, merge
-from slothfile.llm import ModelAdvice, ModelError, OllamaClient, parse_advice
-from slothfile.models import FileRecord
-from slothfile.planner import build_plan
-from slothfile.scanner import scan_folder
+from lazyfold import extract, llm, pathsafe, rules, sniff
+from lazyfold.demo import FAKE_EXE, make_docx, make_pdf
+from lazyfold.engine import HybridClassifier, grounded, make_classifier, merge
+from lazyfold.llm import ModelAdvice, ModelError, OllamaClient, parse_advice
+from lazyfold.models import FileRecord
+from lazyfold.planner import build_plan
+from lazyfold.scanner import scan_folder
 
 
 def rec(name="download.pdf", text="", **kw):
@@ -238,7 +238,7 @@ def test_prompt_marks_content_untrusted():
 
 
 def test_ungrounded_date_is_removed_from_model_name():
-    from slothfile.engine import strip_ungrounded_dates
+    from lazyfold.engine import strip_ungrounded_dates
     r = rec("untitled.txt", "Grocery list for the weekend - oats", sniffed=None)
     assert strip_ungrounded_dates("Grocery list - 2026-09-22", r) == "Grocery list"
     r2 = rec("download.pdf", "Invoice date: October 2, 2026 Northwind")

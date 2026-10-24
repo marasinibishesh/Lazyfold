@@ -76,7 +76,7 @@ def _candidates() -> list[str]:
     local = os.environ.get("LOCALAPPDATA")
     if local:
         out.append(os.path.join(local, "Programs", "Ollama", "ollama.exe"))  # official/winget per-user install
-        out.append(os.path.join(local, "SlothFile-tools", "ollama", "ollama.exe"))
+        out.append(os.path.join(local, "Lazyfold-tools", "ollama", "ollama.exe"))
     return out
 
 
@@ -207,8 +207,8 @@ def install_ollama(progress: Progress | None = None) -> str:
                            f"{': ' + last if last else ''}). Install it from {OLLAMA_DOWNLOAD_URL}.")
     path = find_ollama()
     if not path:
-        raise RuntimeError(f"Ollama was installed but SlothFile cannot find ollama.exe. "
-                           f"Restart SlothFile, or install it from {OLLAMA_DOWNLOAD_URL}.")
+        raise RuntimeError(f"Ollama was installed but Lazyfold cannot find ollama.exe. "
+                           f"Restart Lazyfold, or install it from {OLLAMA_DOWNLOAD_URL}.")
     report("Ollama installed", 100.0)
     return path
 
@@ -241,8 +241,8 @@ def _install_ollama_mac(report: Progress) -> str:
                            f"{': ' + last if last else ''}). Install it from {OLLAMA_MAC_DOWNLOAD_URL}.")
     path = find_ollama()
     if not path:
-        raise RuntimeError(f"Ollama was installed but SlothFile cannot find it. "
-                           f"Restart SlothFile, or install it from {OLLAMA_MAC_DOWNLOAD_URL}.")
+        raise RuntimeError(f"Ollama was installed but Lazyfold cannot find it. "
+                           f"Restart Lazyfold, or install it from {OLLAMA_MAC_DOWNLOAD_URL}.")
     report("Ollama installed", 100.0)
     return path
 

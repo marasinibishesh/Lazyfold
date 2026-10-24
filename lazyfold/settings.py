@@ -1,6 +1,6 @@
 """User settings for the automatic ("be lazier") features.
 
-Stored as JSON in SlothFile's own state folder. The file is user-editable, so
+Stored as JSON in Lazyfold's own state folder. The file is user-editable, so
 it is treated as untrusted input: unknown keys are dropped, values of the
 wrong type fall back to the default, and category names must be real
 categories. Saving validates strictly and refuses bad values instead of
@@ -99,7 +99,7 @@ def _check(key: str, value: Any) -> Any:
 def validate(data: Any, *, strict: bool = False) -> dict[str, Any]:
     """Fill defaults, drop unknown keys. Bad values raise when `strict`,
     otherwise they fall back to the default (a hand-edited typo must not stop
-    SlothFile from starting)."""
+    Lazyfold from starting)."""
     out = defaults()
     if not isinstance(data, dict):
         if strict:

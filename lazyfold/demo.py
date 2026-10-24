@@ -32,7 +32,7 @@ def make_pdf(lines: list[str], title: str | None = None) -> bytes:
         "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     ]
     if title:
-        objs.append(f"<< /Title ({esc(title)}) /Producer (SlothFile demo) >>")
+        objs.append(f"<< /Title ({esc(title)}) /Producer (Lazyfold demo) >>")
     out = io.BytesIO()
     out.write(b"%PDF-1.4\n")
     offsets = []
@@ -93,7 +93,7 @@ def make_zip(files: dict[str, str]) -> bytes:
     return buf.getvalue()
 
 
-FAKE_EXE = b"MZ" + b"\x00" * 58 + b"SlothFile demo stub - not a real program" + b"\x00" * 64
+FAKE_EXE = b"MZ" + b"\x00" * 58 + b"Lazyfold demo stub - not a real program" + b"\x00" * 64
 JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 200 + b"\xff\xd9"
 
 INVOICE_ACME = ["INVOICE", "Acme Cloud Services Ltd.", "Invoice number: INV-10234",

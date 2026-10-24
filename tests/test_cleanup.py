@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from slothfile import cleanup, winshell
-from slothfile.cleanup import Location, clean, load_report, scan_cleanup, temp_locations
-from slothfile.journal import read_journal, state_dir
+from lazyfold import cleanup, winshell
+from lazyfold.cleanup import Location, clean, load_report, scan_cleanup, temp_locations
+from lazyfold.journal import read_journal, state_dir
 from tests.conftest import write_old
 
 windows_only = pytest.mark.skipif(os.name != "nt", reason="Windows shell API")
@@ -229,7 +229,7 @@ def test_delete_requires_confirmation_and_is_journaled(tmp_path):
 @windows_only
 def test_recycle_and_restore_real_file(tmp_path):
     root = tmp_path / "Temp"
-    f = write_old(root / f"slothfile-test-{uuid.uuid4().hex[:8]}.tmp", "recycle me")
+    f = write_old(root / f"lazyfold-test-{uuid.uuid4().hex[:8]}.tmp", "recycle me")
     locs = temp_locations((root,))
     rep = scan_cleanup(locs)
     res = clean(rep.report_id, ["temp_files"], mode="recycle", locations=locs)

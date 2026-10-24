@@ -1,28 +1,28 @@
 """Command line interface.
 
 Organize
-    slothfile demo                      create a disposable messy folder to try things on
-    slothfile plan  FOLDER [--model M]  scan (read-only) and preview a plan
-    slothfile apply PLAN_ID [--recycle] execute a plan after you confirm
-    slothfile undo  RUN_ID|--last       put every file from a run back
-    slothfile runs                      list past runs
-    slothfile recover FOLDER            reconcile an interrupted run
-    slothfile ui [FOLDER]               open the local web interface
+    lazyfold demo                      create a disposable messy folder to try things on
+    lazyfold plan  FOLDER [--model M]  scan (read-only) and preview a plan
+    lazyfold apply PLAN_ID [--recycle] execute a plan after you confirm
+    lazyfold undo  RUN_ID|--last       put every file from a run back
+    lazyfold runs                      list past runs
+    lazyfold recover FOLDER            reconcile an interrupted run
+    lazyfold ui [FOLDER]               open the local web interface
 
 Be lazier
-    slothfile auto FOLDER               plan, move trusted kinds of file, notify about the rest
-    slothfile watch FOLDER              tidy new downloads as they settle (Ctrl+C to stop)
-    slothfile schedule add FOLDER --at 20:00 | summary | list | remove NAME
-    slothfile summary [--days 7] [--notify]
-    slothfile learned [--forget KEY | --reset]
-    slothfile settings [KEY=VALUE ...]
-    slothfile predictor status | selftest | backtest   the optional TabPFN approval predictor
-    slothfile shell-install [--run-alias] | shell-uninstall
+    lazyfold auto FOLDER               plan, move trusted kinds of file, notify about the rest
+    lazyfold watch FOLDER              tidy new downloads as they settle (Ctrl+C to stop)
+    lazyfold schedule add FOLDER --at 20:00 | summary | list | remove NAME
+    lazyfold summary [--days 7] [--notify]
+    lazyfold learned [--forget KEY | --reset]
+    lazyfold settings [KEY=VALUE ...]
+    lazyfold predictor status | selftest | backtest   the optional TabPFN approval predictor
+    lazyfold shell-install [--run-alias] | shell-uninstall
 
 Storage cleanup
-    slothfile cleanup scan
-    slothfile cleanup clean REPORT_ID --categories a,b [--delete]
-    slothfile cleanup empty-bin
+    lazyfold cleanup scan
+    lazyfold cleanup clean REPORT_ID --categories a,b [--delete]
+    lazyfold cleanup empty-bin
 """
 
 from __future__ import annotations
@@ -104,7 +104,7 @@ def _print_report(report: RunReport, verb: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="slothfile", description="Preview-first, undoable folder organizer.")
+    ap = argparse.ArgumentParser(prog="lazyfold", description="Preview-first, undoable folder organizer.")
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("recover", help="reconcile interrupted runs for a folder")
     r.add_argument("folder")
 
-    dk = sub.add_parser("desktop", help="open SlothFile in its own app window (needs the [desktop] extra)")
+    dk = sub.add_parser("desktop", help="open Lazyfold in its own app window (needs the [desktop] extra)")
     dk.add_argument("folder", nargs="?")
 
     ui = sub.add_parser("ui", help="open the local web interface")
@@ -150,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("folder")
     w.add_argument("--interval", type=float, default=30)
 
-    sc = sub.add_parser("schedule", help="run SlothFile automatically with "
+    sc = sub.add_parser("schedule", help="run Lazyfold automatically with "
                         + ("launchd" if _mac() else "Windows Task Scheduler"))
     scs = sc.add_subparsers(dest="sched", required=True)
     s_add = scs.add_parser("add", help="tidy FOLDER every day")
@@ -160,15 +160,15 @@ def main(argv: list[str] | None = None) -> int:
     s_sum.add_argument("--day", default="SUN")
     s_sum.add_argument("--at", default="18:00")
     scs.add_parser("list")
-    scs.add_parser("clear", help="remove every SlothFile scheduled task")
+    scs.add_parser("clear", help="remove every Lazyfold scheduled task")
     s_rm = scs.add_parser("remove")
     s_rm.add_argument("name")
 
-    sm = sub.add_parser("summary", help="what SlothFile did recently")
+    sm = sub.add_parser("summary", help="what Lazyfold did recently")
     sm.add_argument("--days", type=int, default=7)
     sm.add_argument("--notify", action="store_true")
 
-    le = sub.add_parser("learned", help="rules SlothFile learned from your corrections")
+    le = sub.add_parser("learned", help="rules Lazyfold learned from your corrections")
     le.add_argument("--forget")
     le.add_argument("--reset", action="store_true")
 
@@ -182,14 +182,14 @@ def main(argv: list[str] | None = None) -> int:
     prs.add_parser("backtest", help="test it on your own newest reviews, which it was not trained on")
 
     if _mac():
-        si = sub.add_parser("shell-install", help='add the "Tidy with SlothFile" Finder Quick Action')
-        si.add_argument("--run-alias", action="store_true", help="Windows only (on a Mac, Spotlight finds SlothFile)")
+        si = sub.add_parser("shell-install", help='add the "Tidy with Lazyfold" Finder Quick Action')
+        si.add_argument("--run-alias", action="store_true", help="Windows only (on a Mac, Spotlight finds Lazyfold)")
         si.add_argument("--no-menu", action="store_true", help="skip the Quick Action")
         sub.add_parser("shell-uninstall", help="remove the Finder Quick Action")
     else:
-        si = sub.add_parser("shell-install", help='add "Tidy with SlothFile" to the Explorer right-click menu')
+        si = sub.add_parser("shell-install", help='add "Tidy with Lazyfold" to the Explorer right-click menu')
         si.add_argument("--run-alias", action="store_true",
-                        help='also let Windows+R open SlothFile by typing "slothfile"')
+                        help='also let Windows+R open Lazyfold by typing "lazyfold"')
         si.add_argument("--no-menu", action="store_true", help="skip the right-click menu (use with --run-alias)")
         sub.add_parser("shell-uninstall", help="remove the right-click menu entry and the Windows+R shortcut")
 
@@ -206,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return _dispatch(args)
     except NeedsRecovery as e:
-        print(f"Stopped: {e}\nRun: slothfile recover <folder>", file=sys.stderr)
+        print(f"Stopped: {e}\nRun: lazyfold recover <folder>", file=sys.stderr)
         return 2
     except (ValueError, FileNotFoundError, FileExistsError, RuntimeError) as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -215,10 +215,10 @@ def main(argv: list[str] | None = None) -> int:
 
 def _dispatch(args) -> int:
     if args.cmd == "demo":
-        target = Path(args.target) if args.target else Path(tempfile.mkdtemp(prefix="slothfile-demo-")) / "Downloads"
+        target = Path(args.target) if args.target else Path(tempfile.mkdtemp(prefix="lazyfold-demo-")) / "Downloads"
         expected = create_demo_folder(target)
         print(f"Created a messy demo folder with {len(expected)} items at:\n  {target}\n"
-              f"Next: slothfile plan \"{target}\"")
+              f"Next: lazyfold plan \"{target}\"")
         return 0
 
     if args.cmd == "plan":
@@ -231,7 +231,7 @@ def _dispatch(args) -> int:
                                  rename=not args.no_rename, progress=progress if args.model else None)
         print()
         _print_plan(plan)
-        print(f"\n  Nothing has been changed. To execute:  slothfile apply {plan.plan_id}")
+        print(f"\n  Nothing has been changed. To execute:  lazyfold apply {plan.plan_id}")
         return 0
 
     if args.cmd == "apply":
@@ -255,7 +255,7 @@ def _dispatch(args) -> int:
                 approved |= {p.rel_path for p in recycles}
         report = execute(args.plan_id, approved=approved, allow_recycle=allow_recycle)
         _print_report(report, "Done")
-        print(f"  To undo: slothfile undo {report.run_id}")
+        print(f"  To undo: lazyfold undo {report.run_id}")
         return 0 if report.count("failed") == 0 else 3
 
     if args.cmd == "undo":
@@ -332,7 +332,7 @@ def _dispatch(args) -> int:
         print(text)
         if args.notify:
             from .automation import notify
-            notify("SlothFile summary", text.splitlines()[0])
+            notify("Lazyfold summary", text.splitlines()[0])
         return 0
 
     if args.cmd == "learned":
@@ -341,12 +341,12 @@ def _dispatch(args) -> int:
             learning.reset_learning()
             from . import reviewlog
             reviewlog.reset()
-            print("Forgot everything SlothFile learned, including the review history used for predictions.")
+            print("Forgot everything Lazyfold learned, including the review history used for predictions.")
         elif args.forget:
             print("Forgotten." if learning.forget_rule(args.forget) else "No such rule.")
         rules = learning.learned_rules()
         if not rules:
-            print("No learned rules yet. Correct a plan's folder choice twice and SlothFile will remember.")
+            print("No learned rules yet. Correct a plan's folder choice twice and Lazyfold will remember.")
         for rule in rules:
             print(_safe(f"  {rule.key:30} -> {rule.outcome:12} (seen {rule.support}x)"))
         return 0
@@ -382,11 +382,11 @@ def _dispatch(args) -> int:
         from . import automation
         if not args.no_menu:
             automation.install_context_menu()
-            print('Added the "Tidy with SlothFile" Quick Action: right-click a folder in Finder, then Quick Actions.'
-                  if _mac() else 'Added "Tidy with SlothFile" to the right-click menu of folders.')
+            print('Added the "Tidy with Lazyfold" Quick Action: right-click a folder in Finder, then Quick Actions.'
+                  if _mac() else 'Added "Tidy with Lazyfold" to the right-click menu of folders.')
         if args.run_alias:
             automation.install_run_alias()
-            print(automation.RUN_ALIAS_MAC_NOTE if _mac() else 'Press Windows+R and type "slothfile" to open SlothFile.')
+            print(automation.RUN_ALIAS_MAC_NOTE if _mac() else 'Press Windows+R and type "lazyfold" to open Lazyfold.')
         return 0
 
     if args.cmd == "shell-uninstall":
@@ -394,7 +394,7 @@ def _dispatch(args) -> int:
         kept = automation.uninstall_context_menu()
         automation.uninstall_run_alias()
         if _mac():
-            print("Kept (not made by SlothFile): " + ", ".join(kept) if kept else "Removed the Finder Quick Action.")
+            print("Kept (not made by Lazyfold): " + ", ".join(kept) if kept else "Removed the Finder Quick Action.")
         else:
             print("Removed the right-click menu entry and the Windows+R shortcut.")
         return 0
@@ -418,7 +418,7 @@ def _cleanup(args) -> int:
             print(_safe(f"  {'':16} {c['why']}"))
         print(f"  Protected (never cleaned): {d['protected']['count']} files.  {_bin()}: "
               f"{human_bytes(d['recycle_bin']['bytes'])} in {d['recycle_bin']['items']} items.")
-        print(f"\nTo clean: slothfile cleanup clean {d['report_id']} --categories "
+        print(f"\nTo clean: lazyfold cleanup clean {d['report_id']} --categories "
               + ",".join(c["key"] for c in d["categories"] if c.get("selected_by_default") and not c.get("blocked_reason")))
         return 0
     if args.clean_cmd == "clean":

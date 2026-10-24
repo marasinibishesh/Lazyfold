@@ -7,16 +7,16 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from slothfile.demo import create_demo_folder  # noqa: E402
+from lazyfold.demo import create_demo_folder  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def home(tmp_path, monkeypatch):
     """Journals and plans go to a throwaway state dir, never the real one."""
     h = tmp_path / "state"
-    monkeypatch.setenv("SLOTHFILE_HOME", str(h))
+    monkeypatch.setenv("LAZYFOLD_HOME", str(h))
     # Tests must never launch a real Ollama server found on the dev machine.
-    from slothfile import engine
+    from lazyfold import engine
     monkeypatch.setattr(engine, "_autostart_ollama", lambda: False)
     return h
 

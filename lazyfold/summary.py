@@ -1,4 +1,4 @@
-"""Weekly summary: what SlothFile did for you, read back from its own journals.
+"""Weekly summary: what Lazyfold did for you, read back from its own journals.
 
 Read-only by design. The journals are the single source of truth (they are
 written before every action), so the summary can never claim work that did not
@@ -206,7 +206,7 @@ def format_summary(s: dict[str, Any]) -> str:
     extracted = s.get("archives_extracted", 0)
     installers = s.get("recycled_installers", 0)
     if not (organized or freed or s.get("cleanup_files") or extracted or installers or s.get("undone")):
-        return f"Nothing to tidy {period.lower() if period != 'Today' else 'today'} - your sloth rested."
+        return f"Nothing to tidy {period.lower() if period != 'Today' else 'today'} - you got to rest."
 
     bits = []
     if organized:
@@ -218,7 +218,7 @@ def format_summary(s: dict[str, Any]) -> str:
     if not bits:
         bits.append("kept an eye on things")
     head = bits[0] if len(bits) == 1 else ", ".join(bits[:-1]) + " and " + bits[-1]
-    lines = [f"{period} SlothFile {head}."]
+    lines = [f"{period} Lazyfold {head}."]
 
     folders = s.get("by_folder") or {}
     if folders:

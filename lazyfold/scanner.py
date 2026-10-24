@@ -148,7 +148,7 @@ def _ocr_pass(root: Path, records: list[FileRecord]) -> int:
     scans = [r for r in records if not r.skip_reason and not r.ext_mismatch and r.sniffed == "pdf" and not r.text
              and not r.meta.get("encrypted") and 0 < r.size <= MAX_OCR_BYTES]
     for r in scans[:50]:
-        workdir = Path(tempfile.mkdtemp(prefix="slothfile-ocr-"))
+        workdir = Path(tempfile.mkdtemp(prefix="lazyfold-ocr-"))
         try:
             text = ocr.ocr_pdf(root / r.rel_path, workdir).strip()
         finally:

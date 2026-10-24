@@ -7,7 +7,7 @@ import types
 
 import pytest
 
-from slothfile import cli, predict
+from lazyfold import cli, predict
 
 HAS_TABPFN = importlib.util.find_spec("tabpfn") is not None and importlib.util.find_spec("torch") is not None
 CKPT = "tabpfn-v2-classifier-finetuned-zk73skhh.ckpt"
@@ -85,7 +85,7 @@ def test_auc():
 
 def test_synthetic_rows_are_valid_reviewlog_rows():
     import random
-    from slothfile import reviewlog
+    from lazyfold import reviewlog
     rows = predict._synthetic_rows(50, random.Random(1))
     assert all(reviewlog._clean(r) == r for r in rows)
     assert {r["label"] for r in rows} == {0, 1}
@@ -109,5 +109,5 @@ def test_selftest_cli_really_predicts(monkeypatch, capsys):
     assert cli.main(["predictor", "selftest"]) == 0, capsys.readouterr().out
     out = json.loads(capsys.readouterr().out)
     assert out["ok"] and out["auc"] > 0.85 and out["accuracy"] > 0.8, out
-    from slothfile import reviewlog
+    from lazyfold import reviewlog
     assert reviewlog.load_rows() == []  # the user's history is never touched

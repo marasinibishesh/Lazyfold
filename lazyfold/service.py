@@ -182,7 +182,7 @@ def apply_edits(plan: Plan, approved: set[str] | None = None, renames: dict[str,
 
 
 def _learn(plan: Plan, approved: set[str] | None, overrides: dict[str, str], report: RunReport) -> None:
-    """Teach SlothFile from a review that actually ran. Lessons come only from
+    """Teach Lazyfold from a review that actually ran. Lessons come only from
     rows that really moved and rows the user deliberately left; duplicates,
     near-duplicates and recycle suggestions are not lessons. Each plan teaches
     at most once, so a retried or resubmitted request can't double-count."""

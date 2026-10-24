@@ -6,10 +6,10 @@ of a new plan. The score only adds a hint to the review screen and holds back
 automatic moves the user usually changes; it never moves anything by itself.
 
 TabPFN pulls in torch, so it is an optional extra (`pip install
-slothfile[predict]`, CPU torch first) and is imported lazily inside functions:
-the rest of SlothFile and the lean exe never import it. Weights (TabPFN v2,
+lazyfold[predict]`, CPU torch first) and is imported lazily inside functions:
+the rest of Lazyfold and the lean exe never import it. Weights (TabPFN v2,
 ~29 MB) download once from Hugging Face without a login into %APPDATA%\\tabpfn.
-The "Full" Windows build (packaging/slothfile-full.spec) bundles torch, tabpfn
+The "Full" Windows build (packaging/lazyfold-full.spec) bundles torch, tabpfn
 and the v2 checkpoint under tabpfn_models/, so installed users never download.
 Built with PriorLabs-TabPFN (Prior Labs License: Apache 2.0 + attribution).
 """
@@ -57,7 +57,7 @@ def available() -> tuple[bool, str]:
             return False, f"{mod} cannot be imported"
         # origin None = an empty namespace package (e.g. files left by an old install)
         if spec is None or spec.origin in (None, "namespace"):
-            return False, f"{mod} is not installed (pip install slothfile[predict], CPU torch first)"
+            return False, f"{mod} is not installed (pip install lazyfold[predict], CPU torch first)"
     return True, "TabPFN is installed"
 
 
@@ -222,7 +222,7 @@ def fit_predict_rows(train: list[dict[str, Any]], test: list[dict[str, Any]], *,
         return None
     t0 = time.perf_counter()
     # A daemon thread lets us give up on a slow fit without blocking the plan.
-    th = threading.Thread(target=work, name="slothfile-tabpfn", daemon=True)
+    th = threading.Thread(target=work, name="lazyfold-tabpfn", daemon=True)
     _busy = th
     th.start()
     th.join(time_limit)
@@ -408,7 +408,7 @@ def backtest(time_limit: float = TIME_LIMIT, threshold: float | None = None) -> 
         return out
     global _last_status, _last_error
     if not _lock.acquire(blocking=False):  # never alongside a real prediction
-        out["why"] = "SlothFile is scoring a plan right now. Try again in a moment."
+        out["why"] = "Lazyfold is scoring a plan right now. Try again in a moment."
         return out
     try:
         saved = (_last_status, _last_error)  # a backtest is not "the last real run"
@@ -469,7 +469,7 @@ def explain() -> str:
     st = history_status()
     ok, why = available()
     lines = [
-        "SlothFile's approval predictor guesses whether you would accept a proposed move unchanged.",
+        "Lazyfold's approval predictor guesses whether you would accept a proposed move unchanged.",
         "It learns only from your own review history (which moves you kept, unticked or sent elsewhere,",
         "and which automatic tidies you kept or undid),",
         "stored on this computer in reviews.jsonl. It uses TabPFN, a pretrained tabular model run on",

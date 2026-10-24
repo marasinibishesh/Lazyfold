@@ -49,7 +49,7 @@ def same_root(a: str | Path, b: str | Path) -> bool:
 
 
 def check_root(root: Path) -> None:
-    """Refuse links, non-folders, and SlothFile's own state folder."""
+    """Refuse links, non-folders, and Lazyfold's own state folder."""
     if is_link_like(root) or not root.is_dir():
         raise UnsafePath(f"{root} is not a real folder")
     st = os.path.normcase(str(canonical(state_dir())))
@@ -59,7 +59,7 @@ def check_root(root: Path) -> None:
     except ValueError:
         inside = False
     if inside:
-        raise UnsafePath("that folder holds SlothFile's own journals and plans; choose another folder")
+        raise UnsafePath("that folder holds Lazyfold's own journals and plans; choose another folder")
 
 
 class NeedsRecovery(Exception):

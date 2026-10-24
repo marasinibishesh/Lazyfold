@@ -1,7 +1,7 @@
 """Automation: settings, trusted auto-runs, watching, Task Scheduler, registry.
 
 Nothing here shows a real toast, creates a real task or touches real
-registry keys outside HKCU\\Software\\SlothFileTest.
+registry keys outside HKCU\\Software\\LazyfoldTest.
 """
 
 import json
@@ -15,9 +15,9 @@ from pathlib import Path
 import pytest
 
 from conftest import snapshot, write_old
-from slothfile.demo import FAKE_EXE
-from slothfile import automation, executor, service, settings
-from slothfile.rules import DOC_CATEGORIES
+from lazyfold.demo import FAKE_EXE
+from lazyfold import automation, executor, service, settings
+from lazyfold.rules import DOC_CATEGORIES
 
 NO_MODEL = {"use_model": False, "notify_min_files": 5}
 
@@ -95,7 +95,7 @@ def test_notify_passes_text_only_through_env(monkeypatch):
     if os.name != "nt":
         return
     assert all(evil not in a and "Remove-Item" not in a for a in seen["args"])
-    xml = seen["env"]["SLOTHFILE_TOAST_XML"]
+    xml = seen["env"]["LAZYFOLD_TOAST_XML"]
     assert "&lt;b&gt;$(Remove-Item C:\\)&lt;/b&gt;" in xml and "Title &amp; co" in xml
     assert "\u202e" not in xml
     assert automation.TOAST_APP_ID in seen["args"][-1]
@@ -164,14 +164,14 @@ def test_auto_run_moves_trusted_only_and_undoes(demo):
 
 
 def _auto_rows():
-    from slothfile import reviewlog
+    from lazyfold import reviewlog
     path = reviewlog.log_path()
     lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
     return [json.loads(l) for l in lines if l.strip()]
 
 
 def test_auto_run_logs_capped_rows(demo):
-    from slothfile import reviewlog
+    from lazyfold import reviewlog
     root, _ = demo
     for i in range(3):  # with the demo's two, one group holds more installers than the cap
         write_old(root / f"setup-tool-{i}.exe", FAKE_EXE + b"tool" + bytes([i]))
@@ -199,7 +199,7 @@ def test_auto_run_logs_capped_rows(demo):
 
 
 def test_undo_relabels_auto_rows(demo):
-    from slothfile import reviewlog
+    from lazyfold import reviewlog
     root, _ = demo
     before = snapshot(root)
     out = automation.auto_run(root, settings=NO_MODEL, notify_fn=Notes())
@@ -216,7 +216,7 @@ def test_undo_relabels_auto_rows(demo):
 
 
 def test_auto_review_list_untouched_rows_not_logged(demo):
-    from slothfile import reviewlog
+    from lazyfold import reviewlog
     root, _ = demo
     out = automation.auto_run(root, settings=NO_MODEL, notify_fn=Notes())
     waiting = [p for p in service.load_plan(out["plan_id"]).proposals
@@ -230,7 +230,7 @@ def test_auto_review_list_untouched_rows_not_logged(demo):
 
 
 def test_logging_failure_does_not_break_run_or_undo(demo, monkeypatch):
-    from slothfile import reviewlog
+    from lazyfold import reviewlog
     root, _ = demo
     before = snapshot(root)
 
@@ -291,7 +291,7 @@ def test_notify_threshold_and_model_flag(demo, monkeypatch):
     notes = Notes()
     out = automation.auto_run(root, apply_trusted=False, settings={"use_model": True, "notify_min_files": 1000},
                               notify_fn=notes)
-    from slothfile.llm import DEFAULT_MODEL
+    from lazyfold.llm import DEFAULT_MODEL
     assert seen["model"] == DEFAULT_MODEL and not notes.calls and out["notified"] is False
 
 
@@ -325,7 +325,7 @@ def test_auto_run_lock(demo, home):
 
 
 def _move(cat="installers", conf=0.95, engine="rules", prob=None, action="move"):
-    from slothfile.models import Proposal
+    from lazyfold.models import Proposal
     return Proposal(rel_path="a.exe", action=action, category=cat, new_name=None, dest_rel=f"{cat}/a.exe",
                     confidence=conf, reasons=[], engine=engine, fingerprint={"size": 1}, accept_prob=prob)
 
@@ -394,7 +394,7 @@ def test_notification_quiet_about_predictor_when_nothing_held():
     _, body = automation._message(Path("Downloads"), 0, 3, held=3)
     assert "(3 held back because you usually change files like these)" in body
     _, body = automation._message(Path("Downloads"), 12, 3, held=2)
-    assert body.startswith("SlothFile tidied 12 files in Downloads. 3 files are waiting for your review (2 held")
+    assert body.startswith("Lazyfold tidied 12 files in Downloads. 3 files are waiting for your review (2 held")
 
 
 # --------------------------------------------------------------------------
@@ -479,10 +479,10 @@ def test_schedule_daily_args(tmp_path, fake_schtasks):
     folder.mkdir()
     name = automation.schedule_daily(folder, "07:30")
     canon = str(executor.canonical(folder))
-    assert name == automation.tidy_task_name(folder) and name.startswith("SlothFile\\Tidy ")
+    assert name == automation.tidy_task_name(folder) and name.startswith("Lazyfold\\Tidy ")
     assert len(name.split(" ", 1)[1]) == 8
     py = automation.gui_python()
-    assert fake_schtasks == [[_exe(), "/Create", "/TN", name, "/TR", f'"{py}" -m slothfile auto "{canon}"',
+    assert fake_schtasks == [[_exe(), "/Create", "/TN", name, "/TR", f'"{py}" -m lazyfold auto "{canon}"',
                               "/SC", "DAILY", "/ST", "07:30", "/RL", "LIMITED", "/F"]]
     assert automation.tidy_task_name(str(folder).upper()) == name or os.name != "nt"
 
@@ -491,7 +491,7 @@ def test_schedule_daily_args(tmp_path, fake_schtasks):
 def test_schedule_weekly_args(fake_schtasks):
     name = automation.schedule_weekly_summary("mon", "18:05")
     py = automation.gui_python()
-    assert fake_schtasks == [[_exe(), "/Create", "/TN", name, "/TR", f'"{py}" -m slothfile summary --notify',
+    assert fake_schtasks == [[_exe(), "/Create", "/TN", name, "/TR", f'"{py}" -m lazyfold summary --notify',
                               "/SC", "WEEKLY", "/D", "MON", "/ST", "18:05", "/RL", "LIMITED", "/F"]]
 
 
@@ -526,9 +526,9 @@ def test_schedule_failure_raises(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour (schtasks, toast, .exe names, creation flags)")
 def test_remove_task_only_ours(fake_schtasks):
-    automation.remove_task("\\SlothFile\\Tidy 1234abcd")
-    assert fake_schtasks == [[_exe(), "/Delete", "/TN", "SlothFile\\Tidy 1234abcd", "/F"]]
-    for bad in ["Microsoft\\Windows\\Defrag", "\\Other\\SlothFile", "SlothFile\\", "SlothFile\\a\\b", "Tidy"]:
+    automation.remove_task("\\Lazyfold\\Tidy 1234abcd")
+    assert fake_schtasks == [[_exe(), "/Delete", "/TN", "Lazyfold\\Tidy 1234abcd", "/F"]]
+    for bad in ["Microsoft\\Windows\\Defrag", "\\Other\\Lazyfold", "Lazyfold\\", "Lazyfold\\a\\b", "Tidy"]:
         with pytest.raises(ValueError):
             automation.remove_task(bad)
     assert len(fake_schtasks) == 1
@@ -536,11 +536,11 @@ def test_remove_task_only_ours(fake_schtasks):
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows-only behaviour (schtasks, toast, .exe names, creation flags)")
 def test_list_tasks_parses_and_filters(monkeypatch):
-    csv_out = ('"\\SlothFile\\Tidy 1234abcd","10/23/2026 8:00:00 PM","Ready"\r\n'
-               '"\\SlothFile\\Tidy 1234abcd","10/24/2026 8:00:00 PM","Ready"\r\n'
+    csv_out = ('"\\Lazyfold\\Tidy 1234abcd","10/23/2026 8:00:00 PM","Ready"\r\n'
+               '"\\Lazyfold\\Tidy 1234abcd","10/24/2026 8:00:00 PM","Ready"\r\n'
                '"\\Other\\Thing","N/A","Ready"\r\n')
     xml = ('<?xml version="1.0" encoding="UTF-16"?><Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">'
-           '<Actions><Exec><Command>C:\\py\\pythonw.exe</Command><Arguments>-m slothfile auto "C:\\D"</Arguments>'
+           '<Actions><Exec><Command>C:\\py\\pythonw.exe</Command><Arguments>-m lazyfold auto "C:\\D"</Arguments>'
            '</Exec></Actions></Task>')
     calls = []
 
@@ -551,9 +551,9 @@ def test_list_tasks_parses_and_filters(monkeypatch):
 
     monkeypatch.setattr(automation.subprocess, "run", fake_run)
     tasks = automation.list_tasks()
-    assert tasks == [{"name": "SlothFile\\Tidy 1234abcd", "next_run": "10/23/2026 8:00:00 PM", "status": "Ready",
-                      "command": '"C:\\py\\pythonw.exe" -m slothfile auto "C:\\D"'}]
-    assert calls[0] == [_exe(), "/Query", "/TN", "\\SlothFile\\", "/FO", "CSV", "/NH"]
+    assert tasks == [{"name": "Lazyfold\\Tidy 1234abcd", "next_run": "10/23/2026 8:00:00 PM", "status": "Ready",
+                      "command": '"C:\\py\\pythonw.exe" -m lazyfold auto "C:\\D"'}]
+    assert calls[0] == [_exe(), "/Query", "/TN", "\\Lazyfold\\", "/FO", "CSV", "/NH"]
     monkeypatch.setattr(automation.subprocess, "run",
                         lambda args, **k: subprocess.CompletedProcess(args, 1, stdout="", stderr="not found"))
     assert automation.list_tasks() == []
@@ -575,7 +575,7 @@ win_only = pytest.mark.skipif(sys.platform != "win32", reason="registry is Windo
 @pytest.fixture
 def test_base():
     import winreg
-    top = f"Software\\SlothFileTest\\{uuid.uuid4().hex[:8]}"
+    top = f"Software\\LazyfoldTest\\{uuid.uuid4().hex[:8]}"
     yield top + "\\Classes"
 
     def wipe(path):
@@ -597,7 +597,7 @@ def test_base():
 
     wipe(top)
     try:
-        winreg.DeleteKey(winreg.HKEY_CURRENT_USER, "Software\\SlothFileTest")  # only if now empty
+        winreg.DeleteKey(winreg.HKEY_CURRENT_USER, "Software\\LazyfoldTest")  # only if now empty
     except OSError:
         pass
 
@@ -624,17 +624,17 @@ def test_context_menu_install_uninstall(test_base):
     automation.install_context_menu(sys.executable, base=test_base)
     assert automation.context_menu_installed(base=test_base)
     py = automation.gui_python(sys.executable)
-    for key in ("Directory\\shell\\SlothFile", "Directory\\Background\\shell\\SlothFile"):
-        assert _read(f"{test_base}\\{key}") == "Tidy with SlothFile"
+    for key in ("Directory\\shell\\Lazyfold", "Directory\\Background\\shell\\Lazyfold"):
+        assert _read(f"{test_base}\\{key}") == "Tidy with Lazyfold"
         assert _read(f"{test_base}\\{key}", "Icon") == py
-        assert _read(f"{test_base}\\{key}\\command") == f'"{py}" -m slothfile ui "%V"'
+        assert _read(f"{test_base}\\{key}\\command") == f'"{py}" -m lazyfold ui "%V"'
     # A sibling entry that is not ours must survive uninstall.
     with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, f"{test_base}\\Directory\\shell\\Other\\command") as k:
         winreg.SetValueEx(k, "", 0, winreg.REG_SZ, "notepad.exe")
     automation.uninstall_context_menu(base=test_base)
     assert not automation.context_menu_installed(base=test_base)
-    assert not _exists(f"{test_base}\\Directory\\shell\\SlothFile")
-    assert not _exists(f"{test_base}\\Directory\\Background\\shell\\SlothFile")
+    assert not _exists(f"{test_base}\\Directory\\shell\\Lazyfold")
+    assert not _exists(f"{test_base}\\Directory\\Background\\shell\\Lazyfold")
     assert _exists(f"{test_base}\\Directory\\shell\\Other\\command")
     automation.uninstall_context_menu(base=test_base)  # idempotent
 
@@ -644,10 +644,10 @@ def test_run_alias_install_uninstall(test_base, home):
     base = test_base + "\\AppPaths"
     launcher = automation.install_run_alias(sys.executable, base=base)
     assert automation.run_alias_installed(base=base)
-    assert Path(_read(f"{base}\\slothfile.exe")) == launcher and launcher.parent.parent == home
+    assert Path(_read(f"{base}\\lazyfold.exe")) == launcher and launcher.parent.parent == home
     assert launcher.read_bytes() == automation.launcher_script(automation.gui_python(sys.executable))
     automation.uninstall_run_alias(base=base)
-    assert not automation.run_alias_installed(base=base) and not _exists(f"{base}\\slothfile.exe")
+    assert not automation.run_alias_installed(base=base) and not _exists(f"{base}\\lazyfold.exe")
 
 
 # --------------------------------------------------------------------------
@@ -676,7 +676,7 @@ def test_schedule_refuses_percent_paths(tmp_path, fake_schtasks):
 def test_launcher_script_utf8_and_refusals():
     py = "C:\\Users\\\u65e5\u672c caf\u00e9 &(x)\\pythonw.exe"
     data = automation.launcher_script(py)
-    assert data == ('@echo off\r\nchcp 65001>nul\r\nstart "" "' + py + '" -m slothfile ui\r\n').encode("utf-8")
+    assert data == ('@echo off\r\nchcp 65001>nul\r\nstart "" "' + py + '" -m lazyfold ui\r\n').encode("utf-8")
     assert not data.startswith(b"\xef\xbb\xbf") and b"\r\r" not in data
     for bad in ("C:\\a%b\\pythonw.exe", 'C:\\a"b\\pythonw.exe', "C:\\a^b\\pythonw.exe", "C:\\a!b\\pythonw.exe"):
         with pytest.raises(ValueError):
@@ -708,7 +708,7 @@ def test_launcher_header_resolves_non_ascii_in_fresh_console(tmp_path):
     fake.write_bytes(b"")
     out = d / "out.txt"
     text = automation.launcher_script(str(fake)).decode("utf-8")
-    start_line = f'start "" "{fake}" -m slothfile ui'
+    start_line = f'start "" "{fake}" -m lazyfold ui'
     assert start_line in text
     probe = d / "probe.cmd"
     probe.write_bytes(text.replace(
@@ -750,11 +750,11 @@ def test_auto_run_keeps_pending_for_other_folder(tmp_path, home):
 def test_context_menu_uninstall_keeps_key_with_extra_subkeys(test_base):
     import winreg
     automation.install_context_menu(sys.executable, base=test_base)
-    shell = f"{test_base}\\Directory\\shell\\SlothFile"
+    shell = f"{test_base}\\Directory\\shell\\Lazyfold"
     winreg.CreateKey(winreg.HKEY_CURRENT_USER, shell + "\\extra").Close()
     kept = automation.uninstall_context_menu(base=test_base)  # used to raise PermissionError
     assert kept == [shell]
     assert _exists(shell + "\\extra") and not _exists(shell + "\\command")
-    assert not _exists(f"{test_base}\\Directory\\Background\\shell\\SlothFile")
+    assert not _exists(f"{test_base}\\Directory\\Background\\shell\\Lazyfold")
     assert not automation.context_menu_installed(base=test_base)
     assert automation.uninstall_context_menu(base=test_base) == []  # no longer ours: untouched

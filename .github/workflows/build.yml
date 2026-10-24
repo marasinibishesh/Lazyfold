@@ -1,6 +1,6 @@
 # Tests on every push and pull request (Windows and macOS); on a version tag
-# (v1.2.3) also builds SlothFile.exe, packs SlothFile-Setup-<version>.exe and
-# publishes a GitHub Release, then adds SlothFile-<version>-mac.dmg (Apple
+# (v1.2.3) also builds Lazyfold.exe, packs Lazyfold-Setup-<version>.exe and
+# publishes a GitHub Release, then adds Lazyfold-<version>-mac.dmg (Apple
 # Silicon) and the Full editions of both to it.
 name: Test and build
 
@@ -22,14 +22,14 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Install SlothFile with test extras
+      - name: Install Lazyfold with test extras
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[content,dev]"
       - name: Run tests
         shell: pwsh
         env:
-          SLOTHFILE_CI: "1"
+          LAZYFOLD_CI: "1"
         run: |
           python -m pytest -q -rfE 2>&1 | Tee-Object -FilePath pytest-output.txt
           $code = $LASTEXITCODE
@@ -51,17 +51,25 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install "pywebview>=6.2" "pyinstaller>=6.22" "pypdf>=6.21.2" "pillow>=12"
-      - name: Build SlothFile.exe and SlothFileCLI.exe
-        run: pyinstaller packaging\slothfile.spec --noconfirm --distpath packaging\output\dist --workpath packaging\output\build
+      - name: Build Lazyfold.exe and LazyfoldCLI.exe
+        run: pyinstaller packaging\lazyfold.spec --noconfirm --distpath packaging\output\dist --workpath packaging\output\build
       - name: Smoke-test the built exe
         shell: pwsh
         run: |
-          $exe = "packaging\output\dist\SlothFile\SlothFileCLI.exe"
+          $exe = "packaging\output\dist\Lazyfold\LazyfoldCLI.exe"
+          $env:LAZYFOLD_HOME = Join-Path $env:RUNNER_TEMP "lf-home"
           & $exe --version
           $d = Join-Path $env:RUNNER_TEMP "demo\Downloads"
           & $exe demo $d
           & $exe plan $d
           if ($LASTEXITCODE -ne 0) { throw "plan failed" }
+          python packaging\check_renames.py
+          if ($LASTEXITCODE -ne 0) { throw "the CLI suggested no names" }
+          # The window program reads documents the same way when the app is open.
+          $p = Start-Process -FilePath "packaging\output\dist\Lazyfold\Lazyfold.exe" -ArgumentList @("plan", $d) -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "plan through Lazyfold.exe failed" }
+          python packaging\check_renames.py
+          if ($LASTEXITCODE -ne 0) { throw "the window program suggested no names" }
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
       - name: Build the installer
@@ -70,28 +78,28 @@ jobs:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          # The app's own version (slothfile/__init__.py) is the source of truth.
-          $appVersion = python -c "import slothfile; print(slothfile.__version__)"
+          # The app's own version (lazyfold/__init__.py) is the source of truth.
+          $appVersion = python -c "import lazyfold; print(lazyfold.__version__)"
           $version = $appVersion
           if ($env:REF_TYPE -eq "tag") {
             if ($env:REF_NAME -notmatch '^v(\d+\.\d+\.\d+)(-[0-9A-Za-z.-]+)?$') { throw "Tag '$env:REF_NAME' is not like v1.2.3 or v1.2.3-rc1" }
-            if ($Matches[1] -ne $appVersion) { throw "Tag $env:REF_NAME does not match slothfile.__version__ $appVersion" }
+            if ($Matches[1] -ne $appVersion) { throw "Tag $env:REF_NAME does not match lazyfold.__version__ $appVersion" }
             $version = $env:REF_NAME.Substring(1)
           }
           $numeric = ($version -split '-')[0]
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$version" "/DAppVersionNum=$numeric" packaging\slothfile.iss
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$version" "/DAppVersionNum=$numeric" packaging\lazyfold.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
           Get-ChildItem packaging\output\*.exe
       - uses: actions/upload-artifact@v5
         with:
-          name: SlothFile-Setup
-          path: packaging/output/SlothFile-Setup-*.exe
+          name: Lazyfold-Setup
+          path: packaging/output/Lazyfold-Setup-*.exe
           if-no-files-found: error
       - name: "Publish release (tags only)"
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          files: packaging/output/SlothFile-Setup-*.exe
+          files: packaging/output/Lazyfold-Setup-*.exe
           generate_release_notes: true
 
   # "Full" edition: the same app plus CPU PyTorch, TabPFN and the TabPFN v2
@@ -134,16 +142,16 @@ jobs:
           }
           $hash = (Get-FileHash $ckpt -Algorithm SHA256).Hash.ToLower()
           if ($hash -ne $env:CKPT_SHA256) { Remove-Item $ckpt; throw "checkpoint SHA-256 $hash does not match $env:CKPT_SHA256" }
-          "SLOTHFILE_TABPFN_CKPT=$ckpt" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Build the Full SlothFile.exe and SlothFileCLI.exe
-        run: pyinstaller packaging\slothfile-full.spec --noconfirm --distpath packaging\output-full\dist --workpath packaging\output-full\build
+          "LAZYFOLD_TABPFN_CKPT=$ckpt" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Build the Full Lazyfold.exe and LazyfoldCLI.exe
+        run: pyinstaller packaging\lazyfold-full.spec --noconfirm --distpath packaging\output-full\dist --workpath packaging\output-full\build
       - name: Smoke-test the Full exe (offline TabPFN prediction)
         shell: pwsh
         env:
           HF_HUB_OFFLINE: "1"
         run: |
-          $exe = "packaging\output-full\dist\SlothFile\SlothFileCLI.exe"
-          $env:SLOTHFILE_HOME = Join-Path $env:RUNNER_TEMP "sf-home"
+          $exe = "packaging\output-full\dist\Lazyfold\LazyfoldCLI.exe"
+          $env:LAZYFOLD_HOME = Join-Path $env:RUNNER_TEMP "sf-home"
           $env:APPDATA = Join-Path $env:RUNNER_TEMP "empty-appdata"   # prove the bundled weights are used
           New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
           & $exe --version
@@ -162,29 +170,29 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           # Same version rules as the lean build job.
-          $appVersion = python -c "import slothfile; print(slothfile.__version__)"
+          $appVersion = python -c "import lazyfold; print(lazyfold.__version__)"
           $version = $appVersion
           if ($env:REF_TYPE -eq "tag") {
             if ($env:REF_NAME -notmatch '^v(\d+\.\d+\.\d+)(-[0-9A-Za-z.-]+)?$') { throw "Tag '$env:REF_NAME' is not like v1.2.3 or v1.2.3-rc1" }
-            if ($Matches[1] -ne $appVersion) { throw "Tag $env:REF_NAME does not match slothfile.__version__ $appVersion" }
+            if ($Matches[1] -ne $appVersion) { throw "Tag $env:REF_NAME does not match lazyfold.__version__ $appVersion" }
             $version = $env:REF_NAME.Substring(1)
           }
           $numeric = ($version -split '-')[0]
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$version" "/DAppVersionNum=$numeric" packaging\slothfile-full.iss
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$version" "/DAppVersionNum=$numeric" packaging\lazyfold-full.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
           Get-ChildItem packaging\output-full\*.exe
       - uses: actions/upload-artifact@v5
         with:
-          name: SlothFile-Setup-Full
-          path: packaging/output-full/SlothFile-Setup-Full-*.exe
+          name: Lazyfold-Setup-Full
+          path: packaging/output-full/Lazyfold-Setup-Full-*.exe
           if-no-files-found: error
       - name: "Attach the Full installer to the release (tags only)"
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          files: packaging/output-full/SlothFile-Setup-Full-*.exe
+          files: packaging/output-full/Lazyfold-Setup-Full-*.exe
 
-  # macOS (Apple Silicon): the same tests on a Mac, then SlothFile.app in a .dmg.
+  # macOS (Apple Silicon): the same tests on a Mac, then Lazyfold.app in a .dmg.
   test-macos:
     runs-on: macos-14
     steps:
@@ -192,14 +200,14 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Install SlothFile with test extras
+      - name: Install Lazyfold with test extras
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[content,dev]"
       - name: Run tests
         shell: bash
         env:
-          SLOTHFILE_CI: "1"
+          LAZYFOLD_CI: "1"
         run: |
           set +e
           python -m pytest -q -rfE 2>&1 | tee pytest-output.txt
@@ -227,14 +235,14 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           # Same version rules as the Windows build jobs.
-          app_version=$(python -c "import slothfile; print(slothfile.__version__)")
+          app_version=$(python -c "import lazyfold; print(lazyfold.__version__)")
           version=$app_version
           if [ "$REF_TYPE" = "tag" ]; then
             if [[ ! "$REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z.-]+)?$ ]]; then
               echo "::error::Tag '$REF_NAME' is not like v1.2.3 or v1.2.3-rc1"; exit 1
             fi
             if [ "${BASH_REMATCH[1]}" != "$app_version" ]; then
-              echo "::error::Tag $REF_NAME does not match slothfile.__version__ $app_version"; exit 1
+              echo "::error::Tag $REF_NAME does not match lazyfold.__version__ $app_version"; exit 1
             fi
             version=${REF_NAME#v}
           fi
@@ -245,41 +253,45 @@ jobs:
           python -m pip install "pywebview>=6.2" "pyinstaller>=6.22" "pypdf>=6.21.2" "pillow>=12" "pyobjc-framework-Cocoa>=10" "pyobjc-framework-Vision>=10"
       - name: Write the third-party notices for the Mac build
         run: python packaging/make_notices.py lean
-      - name: Build SlothFile.app
-        run: pyinstaller packaging/slothfile-mac.spec --noconfirm --distpath packaging/output/dist --workpath packaging/output/build
+      - name: Build Lazyfold.app
+        run: pyinstaller packaging/lazyfold-mac.spec --noconfirm --distpath packaging/output/dist --workpath packaging/output/build
       - name: Smoke-test the built app
         shell: bash
         run: |
-          app=packaging/output/dist/SlothFile.app
+          app=packaging/output/dist/Lazyfold.app
           plutil -p "$app/Contents/Info.plist"
-          test -x "$app/Contents/MacOS/SlothFile" || { echo "::error::SlothFile is missing from Contents/MacOS"; exit 1; }
+          test -x "$app/Contents/MacOS/Lazyfold" || { echo "::error::Lazyfold is missing from Contents/MacOS"; exit 1; }
           main=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$app/Contents/Info.plist")
-          [ "$main" = "SlothFile" ] || { echo "::error::CFBundleExecutable is $main, not SlothFile"; exit 1; }
-          exe="$app/Contents/MacOS/SlothFileCLI"
-          export SLOTHFILE_HOME="$RUNNER_TEMP/sf-home"
+          [ "$main" = "Lazyfold" ] || { echo "::error::CFBundleExecutable is $main, not Lazyfold"; exit 1; }
+          exe="$app/Contents/MacOS/LazyfoldCLI"
+          export LAZYFOLD_HOME="$RUNNER_TEMP/sf-home"
           "$exe" --version
           d="$RUNNER_TEMP/demo/Downloads"
           "$exe" demo "$d"
           "$exe" plan "$d" || { echo "::error::plan failed"; exit 1; }
+          python packaging/check_renames.py
+          # The window program (what runs when the app is open) must read documents too.
+          "$app/Contents/MacOS/Lazyfold" plan "$d" || { echo "::error::plan through the app failed"; exit 1; }
+          python packaging/check_renames.py
       - name: Make the .dmg
         shell: bash
         run: |
           stage="$RUNNER_TEMP/dmg"
           rm -rf "$stage" && mkdir -p "$stage"
-          ditto packaging/output/dist/SlothFile.app "$stage/SlothFile.app"
+          ditto packaging/output/dist/Lazyfold.app "$stage/Lazyfold.app"
           ln -s /Applications "$stage/Applications"
-          hdiutil create -volname SlothFile -srcfolder "$stage" -ov -format UDZO "packaging/output/SlothFile-$VERSION-mac.dmg"
+          hdiutil create -volname Lazyfold -srcfolder "$stage" -ov -format UDZO "packaging/output/Lazyfold-$VERSION-mac.dmg"
           ls -l packaging/output/*.dmg
       - uses: actions/upload-artifact@v5
         with:
-          name: SlothFile-mac
-          path: packaging/output/SlothFile-*-mac.dmg
+          name: Lazyfold-mac
+          path: packaging/output/Lazyfold-*-mac.dmg
           if-no-files-found: error
       - name: "Attach the .dmg to the release (tags only)"
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          files: packaging/output/SlothFile-*-mac.dmg
+          files: packaging/output/Lazyfold-*-mac.dmg
 
   # "Full" Mac edition: the app plus PyTorch, TabPFN and the TabPFN v2 weights.
   build-macos-full:
@@ -303,14 +315,14 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           # Same version rules as the Windows build jobs.
-          app_version=$(python -c "import slothfile; print(slothfile.__version__)")
+          app_version=$(python -c "import lazyfold; print(lazyfold.__version__)")
           version=$app_version
           if [ "$REF_TYPE" = "tag" ]; then
             if [[ ! "$REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z.-]+)?$ ]]; then
               echo "::error::Tag '$REF_NAME' is not like v1.2.3 or v1.2.3-rc1"; exit 1
             fi
             if [ "${BASH_REMATCH[1]}" != "$app_version" ]; then
-              echo "::error::Tag $REF_NAME does not match slothfile.__version__ $app_version"; exit 1
+              echo "::error::Tag $REF_NAME does not match lazyfold.__version__ $app_version"; exit 1
             fi
             version=${REF_NAME#v}
           fi
@@ -340,21 +352,21 @@ jobs:
           if [ "$hash" != "$CKPT_SHA256" ]; then
             rm -f "$ckpt"; echo "::error::checkpoint SHA-256 $hash does not match $CKPT_SHA256"; exit 1
           fi
-          echo "SLOTHFILE_TABPFN_CKPT=$ckpt" >> "$GITHUB_ENV"
+          echo "LAZYFOLD_TABPFN_CKPT=$ckpt" >> "$GITHUB_ENV"
       - name: Write the third-party notices for the Mac Full build
         run: python packaging/make_notices.py full
-      - name: Build the Full SlothFile.app
-        run: pyinstaller packaging/slothfile-mac-full.spec --noconfirm --distpath packaging/output-full/dist --workpath packaging/output-full/build
+      - name: Build the Full Lazyfold.app
+        run: pyinstaller packaging/lazyfold-mac-full.spec --noconfirm --distpath packaging/output-full/dist --workpath packaging/output-full/build
       - name: Smoke-test the Full app (offline TabPFN prediction)
         shell: bash
         env:
           HF_HUB_OFFLINE: "1"
         run: |
-          app=packaging/output-full/dist/SlothFile.app
-          exe="$PWD/$app/Contents/MacOS/SlothFileCLI"
+          app=packaging/output-full/dist/Lazyfold.app
+          exe="$PWD/$app/Contents/MacOS/LazyfoldCLI"
           # Where sys._MEIPASS points in an .app (data is symlinked here from Contents/Resources).
           ls -lL "$app/Contents/Frameworks/tabpfn_models/"
-          export SLOTHFILE_HOME="$RUNNER_TEMP/sf-home"
+          export LAZYFOLD_HOME="$RUNNER_TEMP/sf-home"
           # An empty home with no tabpfn or Hugging Face cache: proves the bundled weights are used.
           export HOME="$RUNNER_TEMP/empty-home"
           export XDG_CACHE_HOME="$HOME/.cache"
@@ -369,17 +381,17 @@ jobs:
         run: |
           stage="$RUNNER_TEMP/dmg-full"
           rm -rf "$stage" && mkdir -p "$stage"
-          ditto packaging/output-full/dist/SlothFile.app "$stage/SlothFile.app"
+          ditto packaging/output-full/dist/Lazyfold.app "$stage/Lazyfold.app"
           ln -s /Applications "$stage/Applications"
-          hdiutil create -volname SlothFile -srcfolder "$stage" -ov -format UDZO "packaging/output-full/SlothFile-Full-$VERSION-mac.dmg"
+          hdiutil create -volname Lazyfold -srcfolder "$stage" -ov -format UDZO "packaging/output-full/Lazyfold-Full-$VERSION-mac.dmg"
           ls -l packaging/output-full/*.dmg
       - uses: actions/upload-artifact@v5
         with:
-          name: SlothFile-mac-Full
-          path: packaging/output-full/SlothFile-Full-*-mac.dmg
+          name: Lazyfold-mac-Full
+          path: packaging/output-full/Lazyfold-Full-*-mac.dmg
           if-no-files-found: error
       - name: "Attach the Full .dmg to the release (tags only)"
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          files: packaging/output-full/SlothFile-Full-*-mac.dmg
+          files: packaging/output-full/Lazyfold-Full-*-mac.dmg

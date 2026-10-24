@@ -6,7 +6,7 @@ import random
 
 import pytest
 
-from slothfile import cli, predict, reviewlog
+from lazyfold import cli, predict, reviewlog
 
 HAS_TABPFN = importlib.util.find_spec("tabpfn") is not None and importlib.util.find_spec("torch") is not None
 
@@ -91,7 +91,7 @@ def test_cache_follows_the_review_log(installed, monkeypatch):
 
 
 def test_cache_follows_the_threshold(installed, monkeypatch):
-    from slothfile import settings
+    from lazyfold import settings
     write_history(30)
     monkeypatch.setattr(predict, "fit_predict_rows", lambda train, test_f, **kw: [0.9] * len(test_f))
     predict.backtest()  # at the default 0.85
@@ -114,7 +114,7 @@ def test_backtest_and_planning_never_wait_on_each_other(installed, monkeypatch):
 
 
 def plan_with_one_move():
-    from slothfile.models import Plan, Proposal
+    from lazyfold.models import Plan, Proposal
     p = Proposal(rel_path="a.exe", action="move", category="installers", new_name=None,
                  dest_rel="Installers/a.exe", confidence=0.95, reasons=[], engine="rules",
                  fingerprint={"size": 10, "mtime_ns": 1, "head_sha": "x"}, source_host=None, ext=".exe")

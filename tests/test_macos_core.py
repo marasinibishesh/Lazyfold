@@ -12,11 +12,11 @@ from pathlib import Path
 import pytest
 
 from conftest import snapshot, write_old
-from slothfile import executor, installed, journal, macos, ocr, scanner, sniff, winshell
-from slothfile.executor import apply_plan, undo_run
-from slothfile.journal import read_journal
-from slothfile.planner import PlanOptions, build_plan
-from slothfile.scanner import scan_folder
+from lazyfold import executor, installed, journal, macos, ocr, scanner, sniff, winshell
+from lazyfold.executor import apply_plan, undo_run
+from lazyfold.journal import read_journal
+from lazyfold.planner import PlanOptions, build_plan
+from lazyfold.scanner import scan_folder
 
 PKG = b"xar!" + b"\x00\x1c\x00\x01" + b"\x00" * 300
 DMG = b"\x78\xda" + b"\x11" * 1000 + b"koly" + b"\x00" * 508
@@ -256,9 +256,9 @@ def test_installed_apps(tmp_path, monkeypatch, mac):
 
 
 def test_state_path_on_mac(monkeypatch, mac):
-    monkeypatch.delenv("SLOTHFILE_HOME")
-    assert journal.state_path() == Path.home() / "Library" / "Application Support" / "SlothFile"
-    monkeypatch.setenv("SLOTHFILE_HOME", "/tmp/x")
+    monkeypatch.delenv("LAZYFOLD_HOME")
+    assert journal.state_path() == Path.home() / "Library" / "Application Support" / "Lazyfold"
+    monkeypatch.setenv("LAZYFOLD_HOME", "/tmp/x")
     assert journal.state_path() == Path("/tmp/x")
 
 

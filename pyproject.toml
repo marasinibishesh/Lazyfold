@@ -3,8 +3,8 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "slothfile"
-version = "0.5.0"
+name = "lazyfold"
+version = "0.6.0"
 description = "Local-first, preview-first, undoable Downloads organizer with optional on-device Gemma"
 readme = "README.md"
 license = "MIT"
@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
-# Text from PDFs and image metadata. Without them SlothFile still works on
+# Text from PDFs and image metadata. Without them Lazyfold still works on
 # file types and names; PDF content is simply not read.
 # On a Mac, text in images is read with Apple's Vision framework (the
 # pyobjc bindings also bring Foundation, used to move files to the Trash).
@@ -26,16 +26,16 @@ dev = ["pytest>=9"]
 predict = ["tabpfn>=9.2"]
 
 [project.scripts]
-slothfile = "slothfile.cli:main"
+lazyfold = "lazyfold.cli:main"
 
 [project.gui-scripts]
-slothfile-desktop = "slothfile.desktop:main"
+lazyfold-desktop = "lazyfold.desktop:main"
 
 [tool.setuptools]
-packages = ["slothfile"]
+packages = ["lazyfold"]
 
 [tool.setuptools.package-data]
-slothfile = ["ui.html", "ocr.ps1"]
+lazyfold = ["ui.html", "ocr.ps1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

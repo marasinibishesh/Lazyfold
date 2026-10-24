@@ -16,9 +16,9 @@ from pathlib import Path
 
 import pytest
 
-import slothfile
+import lazyfold
 from conftest import write_old
-from slothfile import ai_setup, automation, cleanup, desktop, executor, web, winshell
+from lazyfold import ai_setup, automation, cleanup, desktop, executor, web, winshell
 
 
 @pytest.fixture
@@ -34,8 +34,8 @@ def mac(monkeypatch, tmp_path):
 
 @pytest.fixture
 def fake_macos(monkeypatch):
-    """A stand-in for slothfile/macos.py (the CORE agent's module)."""
-    mod = types.ModuleType("slothfile.macos")
+    """A stand-in for lazyfold/macos.py (the CORE agent's module)."""
+    mod = types.ModuleType("lazyfold.macos")
     mod.IS_MAC = True
     mod.calls = []
 
@@ -44,8 +44,8 @@ def fake_macos(monkeypatch):
         return True
 
     mod.notify = notify
-    monkeypatch.setitem(sys.modules, "slothfile.macos", mod)
-    monkeypatch.setattr(slothfile, "macos", mod, raising=False)
+    monkeypatch.setitem(sys.modules, "lazyfold.macos", mod)
+    monkeypatch.setattr(lazyfold, "macos", mod, raising=False)
     return mod
 
 
@@ -82,12 +82,12 @@ def test_daily_plist_content_and_bootstrap(tmp_path, launchctl, mac):
     folder = tmp_path / "Downloads"
     folder.mkdir()
     label = automation.schedule_daily(folder, "07:30")
-    assert label == automation.tidy_task_name(folder) and label.startswith("com.slothfile.tidy-")
+    assert label == automation.tidy_task_name(folder) and label.startswith("com.lazyfold.tidy-")
     path = agents(mac) / f"{label}.plist"
     data = plistlib.loads(path.read_bytes())
     canon = str(executor.canonical(folder))
     assert data["Label"] == label
-    assert data["ProgramArguments"] == [sys.executable, "-m", "slothfile", "auto", canon]
+    assert data["ProgramArguments"] == [sys.executable, "-m", "lazyfold", "auto", canon]
     assert isinstance(data["ProgramArguments"], list)
     assert data["StartCalendarInterval"] == {"Hour": 7, "Minute": 30}
     assert data["RunAtLoad"] is False
@@ -97,7 +97,7 @@ def test_daily_plist_content_and_bootstrap(tmp_path, launchctl, mac):
 
 def test_weekly_plist_calendar(launchctl, mac):
     label = automation.schedule_weekly_summary("mon", "18:05")
-    assert label == "com.slothfile.weekly-summary"
+    assert label == "com.lazyfold.weekly-summary"
     data = plistlib.loads((agents(mac) / f"{label}.plist").read_bytes())
     assert data["ProgramArguments"][-2:] == ["summary", "--notify"]
     assert data["StartCalendarInterval"] == {"Weekday": 1, "Hour": 18, "Minute": 5}
@@ -142,41 +142,41 @@ def test_schedule_rejects_bad_time_on_mac(tmp_path, launchctl, mac):
 def test_list_and_remove_only_touch_our_plists(launchctl, mac):
     d = agents(mac)
     d.mkdir(parents=True)
-    ours = {"Label": "com.slothfile.tidy-1234abcd", "ProgramArguments": ["/x/SlothFileCLI", "auto", "/Users/me/D"],
+    ours = {"Label": "com.lazyfold.tidy-1234abcd", "ProgramArguments": ["/x/LazyfoldCLI", "auto", "/Users/me/D"],
             "StartCalendarInterval": {"Hour": 20, "Minute": 0}}
-    (d / "com.slothfile.tidy-1234abcd.plist").write_bytes(plistlib.dumps(ours))
+    (d / "com.lazyfold.tidy-1234abcd.plist").write_bytes(plistlib.dumps(ours))
     foreign = d / "com.apple.thing.plist"
     foreign.write_bytes(plistlib.dumps({"Label": "com.apple.thing", "ProgramArguments": ["/bin/true"]}))
-    (d / "com.slothfile.Bad.Name.plist").write_bytes(plistlib.dumps({"Label": "com.slothfile.Bad.Name"}))
-    (d / "com.slothfile.mismatch.plist").write_bytes(plistlib.dumps({"Label": "com.other.x"}))
-    (d / "com.slothfile.broken.plist").write_bytes(b"not a plist")
+    (d / "com.lazyfold.Bad.Name.plist").write_bytes(plistlib.dumps({"Label": "com.lazyfold.Bad.Name"}))
+    (d / "com.lazyfold.mismatch.plist").write_bytes(plistlib.dumps({"Label": "com.other.x"}))
+    (d / "com.lazyfold.broken.plist").write_bytes(b"not a plist")
 
     tasks = automation.list_tasks()
-    assert [t["name"] for t in tasks] == ["com.slothfile.tidy-1234abcd"]
-    assert tasks[0]["command"] == "/x/SlothFileCLI auto /Users/me/D"
+    assert [t["name"] for t in tasks] == ["com.lazyfold.tidy-1234abcd"]
+    assert tasks[0]["command"] == "/x/LazyfoldCLI auto /Users/me/D"
     assert len(tasks[0]["next_run"]) == 16 and tasks[0]["next_run"].endswith("20:00")
 
-    for bad in ["com.apple.thing", "com.slothfile.../../x", "com.slothfile.../com.apple.thing",
-                "com.slothfile.", "com.slothfile.a/b", "com.slothfile.a.b", "../com.slothfile.x", "Tidy", 5]:
+    for bad in ["com.apple.thing", "com.lazyfold.../../x", "com.lazyfold.../com.apple.thing",
+                "com.lazyfold.", "com.lazyfold.a/b", "com.lazyfold.a.b", "../com.lazyfold.x", "Tidy", 5]:
         with pytest.raises(ValueError):
             automation.remove_task(bad)
     assert launchctl.calls == [] and foreign.exists()
 
-    automation.remove_task("com.slothfile.tidy-1234abcd")
-    path = str(d / "com.slothfile.tidy-1234abcd.plist")
+    automation.remove_task("com.lazyfold.tidy-1234abcd")
+    path = str(d / "com.lazyfold.tidy-1234abcd.plist")
     assert launchctl.calls == [["/bin/launchctl", "bootout", "gui/501", path]]
     assert not os.path.exists(path) and foreign.exists()
     with pytest.raises(RuntimeError):
-        automation.remove_task("com.slothfile.tidy-1234abcd")  # already gone
+        automation.remove_task("com.lazyfold.tidy-1234abcd")  # already gone
 
 
 def test_schedule_clear_removes_only_ours(launchctl, mac, capsys):
-    from slothfile import cli
+    from lazyfold import cli
     d = agents(mac)
     d.mkdir(parents=True)
     for leaf in ("tidy-aaaa0000", "weekly-summary"):
-        (d / f"com.slothfile.{leaf}.plist").write_bytes(plistlib.dumps(
-            {"Label": f"com.slothfile.{leaf}", "ProgramArguments": ["x"], "StartCalendarInterval": {"Hour": 1, "Minute": 2}}))
+        (d / f"com.lazyfold.{leaf}.plist").write_bytes(plistlib.dumps(
+            {"Label": f"com.lazyfold.{leaf}", "ProgramArguments": ["x"], "StartCalendarInterval": {"Hour": 1, "Minute": 2}}))
     (d / "org.example.keep.plist").write_bytes(plistlib.dumps({"Label": "org.example.keep"}))
     assert cli.main(["schedule", "clear"]) == 0
     assert sorted(os.listdir(d)) == ["org.example.keep.plist"]
@@ -187,23 +187,23 @@ def test_list_tasks_without_launch_agents_folder(launchctl, mac):
 
 
 def test_frozen_app_uses_cli_and_gui_executables(tmp_path, monkeypatch, mac):
-    macos_dir = tmp_path / "Sloth File's" / "SlothFile.app" / "Contents" / "MacOS"
+    macos_dir = tmp_path / "Lazy Fold's" / "Lazyfold.app" / "Contents" / "MacOS"
     macos_dir.mkdir(parents=True)
-    for exe in ("SlothFile", "SlothFileCLI"):
+    for exe in ("Lazyfold", "LazyfoldCLI"):
         (macos_dir / exe).write_bytes(b"\xcf\xfa\xed\xfe")
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "executable", str(macos_dir / "SlothFile"))
-    assert automation.gui_python() == str(macos_dir / "SlothFile")
-    assert automation.cli_argv() == [str(macos_dir / "SlothFileCLI")]
-    assert automation.launch_argv() == [str(macos_dir / "SlothFile")]
+    monkeypatch.setattr(sys, "executable", str(macos_dir / "Lazyfold"))
+    assert automation.gui_python() == str(macos_dir / "Lazyfold")
+    assert automation.cli_argv() == [str(macos_dir / "LazyfoldCLI")]
+    assert automation.launch_argv() == [str(macos_dir / "Lazyfold")]
     cmd = automation.menu_command()
-    assert shlex.split(cmd) == [str(macos_dir / "SlothFile"), "ui", "$1"]  # quoted path survives the shell
-    assert automation.launch_prefix() == shlex.quote(str(macos_dir / "SlothFile"))
+    assert shlex.split(cmd) == [str(macos_dir / "Lazyfold"), "ui", "$1"]  # quoted path survives the shell
+    assert automation.launch_prefix() == shlex.quote(str(macos_dir / "Lazyfold"))
 
 
 def test_source_checkout_on_mac_uses_python_module(mac):
-    assert automation.cli_argv() == [sys.executable, "-m", "slothfile"]
-    assert automation.launch_argv()[1:] == ["-m", "slothfile"]
+    assert automation.cli_argv() == [sys.executable, "-m", "lazyfold"]
+    assert automation.launch_argv()[1:] == ["-m", "lazyfold"]
 
 
 # --------------------------------------------------------------------------
@@ -220,11 +220,11 @@ def services(mac, monkeypatch):
 
 def test_quick_action_bundle_structure(services, mac):
     automation.install_context_menu()
-    bundle = mac / "Library" / "Services" / "Tidy with SlothFile.workflow"
+    bundle = mac / "Library" / "Services" / "Tidy with Lazyfold.workflow"
     assert sorted(p.name for p in (bundle / "Contents").iterdir()) == ["Info.plist", "document.wflow"]
     info = plistlib.loads((bundle / "Contents" / "Info.plist").read_bytes())
     svc, = info["NSServices"]
-    assert svc["NSMenuItem"] == {"default": "Tidy with SlothFile"}
+    assert svc["NSMenuItem"] == {"default": "Tidy with Lazyfold"}
     assert svc["NSMessage"] == "runWorkflowAsService"
     assert svc["NSSendFileTypes"] == ["public.folder"]
     assert svc["NSRequiredContext"] == {"NSApplicationIdentifier": "com.apple.finder"}
@@ -247,13 +247,13 @@ def test_quick_action_bundle_structure(services, mac):
 
 def test_quick_action_passes_folder_as_argument_not_text(services, mac):
     automation.install_context_menu()
-    doc = plistlib.loads((mac / "Library" / "Services" / "Tidy with SlothFile.workflow" / "Contents"
+    doc = plistlib.loads((mac / "Library" / "Services" / "Tidy with Lazyfold.workflow" / "Contents"
                           / "document.wflow").read_bytes())
     script = doc["actions"][0]["action"]["ActionParameters"]["COMMAND_STRING"]
     assert script == automation.workflow_script()
     run_line = [line for line in script.splitlines() if " ui " in line][0]
     tokens = shlex.split(run_line)
-    assert tokens[:3] == [sys.executable, "-m", "slothfile"]
+    assert tokens[:3] == [sys.executable, "-m", "lazyfold"]
     assert tokens[3:5] == ["ui", "$1"]  # "$1" double-quoted: one argument, never word-split
     assert '"$1"' in run_line and "$@" not in script and "eval" not in script
     assert run_line.rstrip().endswith("&")  # Finder is not kept waiting while the window is open
@@ -263,7 +263,7 @@ def test_quick_action_uninstall_and_foreign_bundle(services, mac):
     automation.install_context_menu()
     automation.install_context_menu()  # reinstall replaces our own bundle
     assert automation.uninstall_context_menu() == []
-    bundle = mac / "Library" / "Services" / "Tidy with SlothFile.workflow"
+    bundle = mac / "Library" / "Services" / "Tidy with Lazyfold.workflow"
     assert not bundle.exists() and not automation.context_menu_installed()
     (bundle / "Contents").mkdir(parents=True)
     (bundle / "Contents" / "Info.plist").write_bytes(plistlib.dumps({"NSServices": []}))  # someone else's
@@ -612,7 +612,7 @@ def test_api_state_reports_platform(demo, monkeypatch):
 
     def state():
         c = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
-        c.request("GET", "/api/state", headers={"X-SlothFile-Token": app.token, "Host": f"127.0.0.1:{port}"})
+        c.request("GET", "/api/state", headers={"X-Lazyfold-Token": app.token, "Host": f"127.0.0.1:{port}"})
         r = c.getresponse()
         body = json.loads(r.read())
         c.close()
@@ -646,7 +646,7 @@ def test_ui_has_mac_wording_and_stays_csp_safe():
     import re
     html = (Path(web.__file__).parent / "ui.html").read_text(encoding="utf-8")
     assert 'data-mac="Empty Trash"' in html and 'data-mac="Uses macOS text recognition"' in html
-    assert "Finder Quick Action: Tidy with SlothFile" in html and 'id="run-alias-row"' in html
+    assert "Finder Quick Action: Tidy with Lazyfold" in html and 'id="run-alias-row"' in html
     assert "st.platform" in html
     assert not re.search(r"<[^>]+\sstyle\s*=", html)  # no inline style attributes
     assert not re.search(r"<[^>]+\son[a-z]+\s*=", html)  # no inline event handlers

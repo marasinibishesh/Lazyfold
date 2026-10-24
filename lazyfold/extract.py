@@ -8,6 +8,7 @@ extractor is wrapped: a failure yields an empty excerpt plus a warning, never a 
 from __future__ import annotations
 
 import re
+import sys
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -153,19 +154,44 @@ PARSED_KINDS = {"pdf", "docx", "png", "jpeg", "gif", "bmp", "webp"}
 PARSE_TIMEOUT = 8.0
 
 
+CLI_EXE_NAME = "LazyfoldCLI"  # the console program next to the window program in a frozen build
+IN_PROCESS_NOTE = "read without the isolated worker (it could not start)"
+
+
+def worker_executable() -> str | None:
+    """The program that hosts the parser worker in a frozen macOS app. The
+    window program (Contents/MacOS/Lazyfold) is a GUI app that macOS may not
+    start as a background worker; the console program next to it is. None
+    means "use sys.executable" (source runs, Windows)."""
+    if sys.platform != "darwin" or not getattr(sys, "frozen", False):
+        return None
+    cli = Path(sys.executable).with_name(CLI_EXE_NAME)
+    return str(cli) if cli.is_file() else None
+
+
 class IsolatedExtractor:
     """Runs third-party parsers (pypdf, Pillow, XML) in a worker process with a
     timeout, so a hostile file can hang or exhaust only a process we can kill.
-    Plain text is read in-process (bounded read, no parser)."""
+    Plain text is read in-process (bounded read, no parser). If the worker
+    cannot start at all, parsing falls back to this process (the same size and
+    page limits apply) and every result says so, instead of silently reading
+    nothing."""
 
     def __init__(self, timeout: float = PARSE_TIMEOUT):
         self.timeout = timeout
         self._pool = None
+        self._worker_ok = False  # has the worker returned at least one result?
+        self._in_process = False  # the worker could not start; parse here
 
     def _get_pool(self):
         if self._pool is None:
+            import multiprocessing
             from concurrent.futures import ProcessPoolExecutor
-            self._pool = ProcessPoolExecutor(max_workers=1)
+            ctx = multiprocessing.get_context()
+            exe = worker_executable()
+            if exe:
+                ctx.set_executable(exe)
+            self._pool = ProcessPoolExecutor(max_workers=1, mp_context=ctx)
         return self._pool
 
     def _kill_pool(self) -> None:
@@ -178,16 +204,27 @@ class IsolatedExtractor:
     def __call__(self, path: Path, kind: str | None, ext: str) -> tuple[str, dict[str, Any], list[str]]:
         if kind not in PARSED_KINDS:
             return extract(path, kind, ext)
+        if self._in_process:
+            text, meta, warns = extract(path, kind, ext)
+            return text, meta, warns + [IN_PROCESS_NOTE]
         from concurrent.futures import TimeoutError as FutTimeout
         from concurrent.futures.process import BrokenProcessPool
         try:
             fut = self._get_pool().submit(extract, path, kind, ext)
-            return fut.result(timeout=self.timeout)
+            out = fut.result(timeout=self.timeout)
+            self._worker_ok = True
+            return out
         except FutTimeout:
             self._kill_pool()
             return "", {}, [f"content parsing timed out after {self.timeout:.0f}s"]
         except (BrokenProcessPool, OSError, RuntimeError) as e:
             self._kill_pool()
+            if not self._worker_ok:
+                # The worker never started (not a hostile file: it failed before
+                # reading anything). Without it no document would be read at all.
+                self._in_process = True
+                text, meta, warns = extract(path, kind, ext)
+                return text, meta, warns + [IN_PROCESS_NOTE]
             return "", {}, [f"content parser crashed ({type(e).__name__})"]
 
     def close(self) -> None:

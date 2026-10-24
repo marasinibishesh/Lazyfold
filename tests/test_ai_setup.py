@@ -11,9 +11,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from slothfile import ai_setup, engine
-from slothfile.llm import DEFAULT_MODEL
-from slothfile.settings import save_settings
+from lazyfold import ai_setup, engine
+from lazyfold.llm import DEFAULT_MODEL
+from lazyfold.settings import save_settings
 
 REAL_AUTOSTART = engine._autostart_ollama  # conftest replaces it per test; keep the real one
 
@@ -106,7 +106,7 @@ def test_detection_order(no_ollama, monkeypatch, tmp_path):
     configured = touch(tmp_path / "custom" / "ollama.exe")
     on_path = touch(tmp_path / "path" / "ollama.exe")
     programs = touch(no_ollama / "Programs" / "Ollama" / "ollama.exe")
-    tools = touch(no_ollama / "SlothFile-tools" / "ollama" / "ollama.exe")
+    tools = touch(no_ollama / "Lazyfold-tools" / "ollama" / "ollama.exe")
     monkeypatch.setattr(ai_setup.shutil, "which", lambda name: str(on_path) if name == "ollama" else None)
     save_settings({"ollama_path": str(configured)})
     assert ai_setup.find_ollama() == str(configured)
@@ -410,7 +410,7 @@ def test_autostart_respects_settings_and_running_server(monkeypatch, tmp_path):
 
 @pytest.fixture
 def server(tmp_path):
-    from slothfile.web import App, make_handler
+    from lazyfold.web import App, make_handler
     app = App(None)
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
     port = httpd.server_address[1]
@@ -424,7 +424,7 @@ def server(tmp_path):
 def call(app, port, method, path, body=None):
     import http.client
     c = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
-    h = {"X-SlothFile-Token": app.token}
+    h = {"X-Lazyfold-Token": app.token}
     data = None
     if body is not None:
         data = json.dumps(body).encode()

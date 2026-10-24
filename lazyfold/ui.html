@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SlothFile</title>
+<title>Lazyfold</title>
 <style nonce="{{NONCE}}">
 /* ---------- Design tokens (Windows 11 inspired) ---------- */
 :root {
@@ -294,20 +294,19 @@ dialog .dfoot .btn { min-width: 120px; }
     <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#408C64"/><stop offset="1" stop-color="#1E563C"/></linearGradient>
     <symbol id="logo" viewBox="0 0 100 100">
       <rect x="3" y="3" width="94" height="94" rx="23" fill="url(#lg)"/>
-      <ellipse cx="50" cy="52" rx="33" ry="30" fill="#F6ECDC"/>
-      <ellipse cx="35.5" cy="50.25" rx="12.5" ry="7.25" fill="#5C4636" transform="rotate(-14 35.5 50.25)"/>
-      <ellipse cx="64.5" cy="50.25" rx="12.5" ry="7.25" fill="#5C4636" transform="rotate(14 64.5 50.25)"/>
-      <path d="M30.8 52.2 Q36 56.2 41.2 52.2 M58.8 52.2 Q64 56.2 69.2 52.2" fill="none" stroke="#F6ECDC" stroke-width="2.4" stroke-linecap="round"/>
-      <ellipse cx="50" cy="61.1" rx="3.8" ry="2.65" fill="#34261C"/>
-      <path d="M44.6 66.6 Q50 71.4 55.4 66.6" fill="none" stroke="#34261C" stroke-width="1.6" stroke-linecap="round"/>
+      <rect x="20" y="26" width="26" height="14" rx="4" fill="#E2D1B4"/>
+      <rect x="20" y="31" width="60" height="43" rx="6" fill="#E2D1B4"/>
+      <path d="M24 38H76Q82 38 82 44V62L66 78H24Q18 78 18 72V44Q18 38 24 38Z" fill="#F6ECDC"/>
+      <path d="M66 78V66Q66 62 70 62H82Z" fill="#CDB896"/>
+      <path d="M58 15H68L58 25H68M73 9H80L73 16H80" fill="none" stroke="#F6ECDC" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
   </defs>
 </svg>
 
-<div class="splash" id="splash" role="status" aria-label="Starting SlothFile">
+<div class="splash" id="splash" role="status" aria-label="Starting Lazyfold">
   <div class="inner">
     <svg><use href="#logo"/></svg>
-    <h1>SlothFile</h1>
+    <h1>Lazyfold</h1>
     <p>Tidy files safely, right on your PC</p>
     <div class="dots"><i></i><i></i><i></i></div>
   </div>
@@ -315,7 +314,7 @@ dialog .dfoot .btn { min-width: 120px; }
 
 <div class="app">
   <nav class="nav" aria-label="Main">
-    <div class="brand"><svg aria-hidden="true"><use href="#logo"/></svg><b>SlothFile</b></div>
+    <div class="brand"><svg aria-hidden="true"><use href="#logo"/></svg><b>Lazyfold</b></div>
     <button data-page="organize" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h8M8 16h5"/></svg><span class="lbl">Organize</span><span class="badge-count hidden" id="pending-count"></span></button>
     <button data-page="cleanup"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span class="lbl">Clean up</span></button>
     <button data-page="auto"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg><span class="lbl">Automation</span></button>
@@ -328,7 +327,7 @@ dialog .dfoot .btn { min-width: 120px; }
   <main id="main">
     <!-- ======================= ORGANIZE ======================= -->
     <section class="page" data-page="organize">
-      <div class="page-head"><h1>Organize</h1><p>Pick a folder. SlothFile suggests a tidy layout, you approve it, and you can always undo.</p></div>
+      <div class="page-head"><h1>Organize</h1><p>Pick a folder. Lazyfold suggests a tidy layout, you approve it, and you can always undo.</p></div>
       <div id="pending-banner" class="banner info hidden"></div>
       <div class="stepper" aria-hidden="true">
         <div id="st-1" class="on"><span>1</span>Choose folder</div>
@@ -337,7 +336,7 @@ dialog .dfoot .btn { min-width: 120px; }
       </div>
 
       <div id="org-choose" class="card">
-        <h2>Which folder should SlothFile tidy?</h2>
+        <h2>Which folder should Lazyfold tidy?</h2>
         <p class="sub">Only files directly inside it are considered. Subfolders and anything suspicious are left alone.</p>
         <div class="picker">
           <input class="input" id="folder" placeholder="C:\Users\you\Downloads" aria-label="Folder to tidy" spellcheck="false">
@@ -406,13 +405,13 @@ dialog .dfoot .btn { min-width: 120px; }
         <div class="label"><b id="bin-info" data-mac="Scan to see how much the Trash holds">Scan to see how much the Recycle Bin holds</b><span>Emptying is permanent and never part of another action.</span></div>
         <button class="btn" id="bin-empty" disabled data-mac="Empty Trash">Empty Recycle Bin</button>
       </div>
-      <p class="small muted mt14" data-mac="SlothFile never asks for administrator rights and never touches /System, /Library, Safari, Mail, Photos or iCloud. Use Apple menu → System Settings → General → Storage for those.">SlothFile never asks for administrator rights and never touches C:\Windows\Temp, Windows Update files or Prefetch.
+      <p class="small muted mt14" data-mac="Lazyfold never asks for administrator rights and never touches /System, /Library, Safari, Mail, Photos or iCloud. Use Apple menu → System Settings → General → Storage for those.">Lazyfold never asks for administrator rights and never touches C:\Windows\Temp, Windows Update files or Prefetch.
         Use Windows Settings → System → Storage for those.</p>
     </section>
 
     <!-- ======================= AUTOMATION ======================= -->
     <section class="page hidden" data-page="auto">
-      <div class="page-head"><h1>Automation</h1><p>Let SlothFile tidy by itself. It only moves the kinds of file you trust; everything else waits for you.</p></div>
+      <div class="page-head"><h1>Automation</h1><p>Let Lazyfold tidy by itself. It only moves the kinds of file you trust; everything else waits for you.</p></div>
       <div class="card">
         <div class="row">
           <div class="grow"><h2>Tidy now</h2><p class="sub m0" id="auto-folder-text"></p></div>
@@ -429,7 +428,7 @@ dialog .dfoot .btn { min-width: 120px; }
       </div>
       <div class="setting last">
         <svg class="icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4"/></svg>
-        <div class="label"><b>Weekly summary</b><span>A notification every Sunday at 18:00 with what SlothFile did.</span></div>
+        <div class="label"><b>Weekly summary</b><span>A notification every Sunday at 18:00 with what Lazyfold did.</span></div>
         <span class="switch"><input type="checkbox" id="sched-weekly" aria-label="Weekly summary"><i></i></span>
       </div>
       <p class="small muted mt12">Choose which kinds of file move without asking in <a href="#" id="go-trusted">Settings → Automatic tidy</a>.</p>
@@ -449,7 +448,7 @@ dialog .dfoot .btn { min-width: 120px; }
       <div class="section-title">General</div>
       <div class="setting first">
         <svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-        <div class="label"><b>Default folder</b><span id="def-folder-text">Pre-filled when SlothFile opens</span></div>
+        <div class="label"><b>Default folder</b><span id="def-folder-text">Pre-filled when Lazyfold opens</span></div>
         <button class="btn" id="def-folder-pick">Change</button>
       </div>
       <div class="setting last">
@@ -468,7 +467,7 @@ dialog .dfoot .btn { min-width: 120px; }
         <div id="ai-progress" class="hidden"><div class="progress"><div></div></div><p class="tiny m6" id="ai-stage"></p></div>
       </div>
       <div class="setting last">
-        <div class="label"><b>Use local AI for documents</b><span>When off, SlothFile uses its built-in rules only.</span></div>
+        <div class="label"><b>Use local AI for documents</b><span>When off, Lazyfold uses its built-in rules only.</span></div>
         <span class="switch"><input type="checkbox" data-setting="use_model"><i></i></span>
       </div>
 
@@ -482,7 +481,7 @@ dialog .dfoot .btn { min-width: 120px; }
         <input class="input num" type="number" min="50" max="99" step="1" id="accept-min" aria-label="Percent"></div>
       <div class="setting"><div class="label"><b>How well it knows you</b><span id="bt-text">Tests TabPFN on your newest reviews, which it was not trained on, and compares it with simply accepting everything.</span></div>
         <button class="btn" id="bt-run">Check now</button></div>
-      <div class="setting last"><div class="label"><span>Built with PriorLabs-TabPFN. Runs on this PC. Kept on this PC only: file type, size, age, download site, the folder SlothFile proposed, the folder you chose, and whether you accepted it. Never file names or contents.</span></div></div>
+      <div class="setting last"><div class="label"><span>Built with PriorLabs-TabPFN. Runs on this PC. Kept on this PC only: file type, size, age, download site, the folder Lazyfold proposed, the folder you chose, and whether you accepted it. Never file names or contents.</span></div></div>
 
       <div class="section-title">Organizing</div>
       <div class="setting first"><div class="label"><b>Read scanned PDFs and photos of documents</b><span data-mac="Uses macOS text recognition">Uses Windows' built-in text recognition (OCR)</span></div><span class="switch"><input type="checkbox" data-setting="ocr"><i></i></span></div>
@@ -501,17 +500,17 @@ dialog .dfoot .btn { min-width: 120px; }
       <div class="setting last"><div class="label"><b>Notify when at least</b><span>files were handled</span></div><input class="input num" type="number" min="0" step="1" data-setting="notify_min_files" aria-label="Files"></div>
 
       <div class="section-title">Shortcuts</div>
-      <div class="setting first" id="ctx-row"><div class="label"><b data-mac="Finder Quick Action: Tidy with SlothFile">"Tidy with SlothFile" in the right-click menu</b><span data-mac="Right-click a folder in Finder, then choose Quick Actions">On folders in File Explorer (Windows 11: Show more options)</span></div><span class="switch"><input type="checkbox" id="ctx-menu"><i></i></span></div>
-      <div class="setting last" id="run-alias-row"><div class="label"><b>Open from Windows+R</b><span>Type slothfile in the Run box</span></div><span class="switch"><input type="checkbox" id="run-alias"><i></i></span></div>
+      <div class="setting first" id="ctx-row"><div class="label"><b data-mac="Finder Quick Action: Tidy with Lazyfold">"Tidy with Lazyfold" in the right-click menu</b><span data-mac="Right-click a folder in Finder, then choose Quick Actions">On folders in File Explorer (Windows 11: Show more options)</span></div><span class="switch"><input type="checkbox" id="ctx-menu"><i></i></span></div>
+      <div class="setting last" id="run-alias-row"><div class="label"><b>Open from Windows+R</b><span>Type lazyfold in the Run box</span></div><span class="switch"><input type="checkbox" id="run-alias"><i></i></span></div>
 
       <div class="section-title">Privacy &amp; learning</div>
-      <div class="setting first stack"><div class="label"><b>What SlothFile learned from you</b><span>When you change a file's folder twice, SlothFile remembers it.</span></div><div id="learned"></div></div>
+      <div class="setting first stack"><div class="label"><b>What Lazyfold learned from you</b><span>When you change a file's folder twice, Lazyfold remembers it.</span></div><div id="learned"></div></div>
       <div class="setting last"><div class="label"><b>Forget everything</b><span>Learned rules and the history used for predictions. Your files are not touched.</span></div><button class="btn" id="forget-all">Forget</button></div>
 
       <div class="section-title">About</div>
       <div class="setting solo">
         <svg class="icon about-logo" viewBox="0 0 100 100"><use href="#logo"/></svg>
-        <div class="label"><b>SlothFile <span id="ver"></span></b><span>Created by Bishesh Marasini · MIT License · github.com/marasinibishesh/SlothFile</span>
+        <div class="label"><b>Lazyfold <span id="ver"></span></b><span>Created by Bishesh Marasini · MIT License · github.com/marasinibishesh/Lazyfold</span>
           <span data-mac="Local AI: Gemma 4 (Apache 2.0) via Ollama · Predictions: Built with PriorLabs-TabPFN · Text from scans: macOS text recognition">Local AI: Gemma 4 (Apache 2.0) via Ollama · Predictions: Built with PriorLabs-TabPFN · Text from scans: Windows OCR</span></div>
       </div>
     </section>
@@ -548,7 +547,7 @@ const BIN = () => (MAC() ? "Trash" : "Recycle Bin");  // where recycled files go
 function applyPlatform() {
   if (!MAC()) return;
   document.querySelectorAll("[data-mac]").forEach((e) => { e.textContent = e.dataset.mac; });
-  $("run-alias-row").classList.add("hidden");  // no Windows+R on a Mac; Spotlight finds SlothFile
+  $("run-alias-row").classList.add("hidden");  // no Windows+R on a Mac; Spotlight finds Lazyfold
   $("ctx-row").classList.replace("first", "solo");
 }
 
@@ -574,7 +573,7 @@ const bytes = (n) => { const u = ["bytes", "KB", "MB", "GB", "TB"]; let i = 0; n
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 async function api(path, body) {
-  const opts = { headers: { "X-SlothFile-Token": TOKEN } };
+  const opts = { headers: { "X-Lazyfold-Token": TOKEN } };
   if (body !== undefined) { opts.method = "POST"; opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
   const r = await fetch(path, opts);
   const data = await r.json().catch(() => ({ error: "Unexpected response" }));
@@ -610,7 +609,7 @@ function handleError(e) {
         toast(`Recovered ${plural(r.reports.length, "interrupted run")}. You can undo it from History.`); loadHistory(); }
       catch (e2) { toast(e2.message, "bad"); }
     };
-    toast(e.message + " SlothFile will check every file against its journal first.", "warn", b);
+    toast(e.message + " Lazyfold will check every file against its journal first.", "warn", b);
   } else toast(e.message, "bad");
 }
 function confirmDialog({ title, body, yes = "OK", danger = false, word = null }) {
@@ -737,7 +736,7 @@ $("scan").onclick = async () => {
 };
 
 function confidence(c) {
-  return el("span", { class: "conf", title: "How sure SlothFile is" }, el("i", { class: c < 0.8 ? "mid" : "" }), Math.round(c * 100) + "%");
+  return el("span", { class: "conf", title: "How sure Lazyfold is" }, el("i", { class: c < 0.8 ? "mid" : "" }), Math.round(c * 100) + "%");
 }
 function folderSelect(p) {
   const s = el("select", { class: "input", title: "Folder" }); s.dataset.rel = p.rel_path; s.dataset.orig = p.category; s.className = "input override";
@@ -835,7 +834,7 @@ function extraGroup(title, list, selectable) {
   const body = el("div", { class: "group-body" });
   const g = el("div", { class: "group collapsed" }, head, body);
   head.onclick = () => g.classList.toggle("collapsed");
-  if (selectable) body.append(el("div", { class: "item kept" }, el("div", { class: "small muted", text: `Unticked by default. If you tick any, SlothFile asks once more before sending them to the ${BIN()}.` })));
+  if (selectable) body.append(el("div", { class: "item kept" }, el("div", { class: "small muted", text: `Unticked by default. If you tick any, Lazyfold asks once more before sending them to the ${BIN()}.` })));
   for (const p of list) {
     const row = el("div", { class: "item" + (selectable ? "" : " kept") });
     if (selectable) { const b = el("input", { type: "checkbox", class: "check recycle-box", title: "Recycle " + p.rel_path }); b.dataset.rel = p.rel_path; b.onchange = updateCount; row.append(b); }
@@ -991,7 +990,7 @@ $("auto-now").onclick = async () => {
   const folder = $("folder").value || S.settings.default_folder;
   if (!folder) { toast("Choose a folder on the Organize page first.", "warn"); return; }
   if (!(await confirmDialog({ title: "Tidy automatically now?", yes: "Tidy",
-    body: `SlothFile moves only the kinds of file you trust in ${folder}. Everything else waits for your review. You can undo it from History.` }))) return;
+    body: `Lazyfold moves only the kinds of file you trust in ${folder}. Everything else waits for your review. You can undo it from History.` }))) return;
   $("auto-now").disabled = true; const out = $("auto-outcome"); out.classList.remove("hidden"); out.textContent = "Working…";
   try { const { job } = await api("/api/auto", { folder }); const r = (await waitJob(job)).result;
     out.textContent = r.error ? r.error : `Moved ${plural(r.moved, "file")}; ${r.waiting} waiting for your review.`; loadAutomation(); }
@@ -1006,7 +1005,7 @@ $("sched-daily").onchange = async (e) => {
   if (e.target.checked) {
     const folder = $("folder").value || S.settings.default_folder;
     if (!folder) { e.target.checked = false; toast("Choose a folder on the Organize page first.", "warn"); return; }
-    automation({ action: "schedule_daily", folder, at: $("sched-at").value }, `SlothFile will tidy ${folder} every day at ${$("sched-at").value}.`);
+    automation({ action: "schedule_daily", folder, at: $("sched-at").value }, `Lazyfold will tidy ${folder} every day at ${$("sched-at").value}.`);
   } else {
     const a = await api("/api/automation"); const t = a.tasks.find((x) => /tidy/i.test(x.name));
     if (t) automation({ action: "remove_task", name: t.name }, "Daily tidy turned off.");
@@ -1066,14 +1065,14 @@ $("def-folder-pick").onclick = async () => {
   if (f) { await save({ default_folder: f }); $("def-folder-text").textContent = f; }
 };
 $("forget-all").onclick = async () => {
-  if (await confirmDialog({ title: "Forget everything SlothFile learned?", yes: "Forget", body: "Learned rules and prediction history are removed. Your files are not touched." })) {
+  if (await confirmDialog({ title: "Forget everything Lazyfold learned?", yes: "Forget", body: "Learned rules and prediction history are removed. Your files are not touched." })) {
     try { await api("/api/learned/reset", { confirm: true }); toast("Forgotten."); loadSettingsPage(); } catch (e) { handleError(e); }
   }
 };
 $("ctx-menu").onchange = () => automation({ action: "context_menu", on: $("ctx-menu").checked }, MAC()
   ? ($("ctx-menu").checked ? "Added to Finder Quick Actions." : "Removed from Finder Quick Actions.")
   : ($("ctx-menu").checked ? "Added to the right-click menu." : "Removed from the right-click menu."));
-$("run-alias").onchange = () => automation({ action: "run_alias", on: $("run-alias").checked }, $("run-alias").checked ? "Type slothfile in Windows+R to open SlothFile." : "Windows+R shortcut removed.");
+$("run-alias").onchange = () => automation({ action: "run_alias", on: $("run-alias").checked }, $("run-alias").checked ? "Type lazyfold in Windows+R to open Lazyfold." : "Windows+R shortcut removed.");
 async function loadShortcuts() {
   try { const a = await api("/api/automation"); $("ctx-menu").checked = a.context_menu; $("run-alias").checked = a.run_alias; } catch (e) {}
 }
@@ -1083,7 +1082,7 @@ async function loadSettingsPage() {
     const s = S.settings;
     document.querySelectorAll("[data-setting]").forEach((i) => { const v = s[i.dataset.setting]; if (i.type === "checkbox") i.checked = !!v; else i.value = v ?? 0; });
     applyTheme(s.theme);
-    $("def-folder-text").textContent = s.default_folder || (S.home.Downloads ? `Downloads (${S.home.Downloads})` : "Pre-filled when SlothFile opens");
+    $("def-folder-text").textContent = s.default_folder || (S.home.Downloads ? `Downloads (${S.home.Downloads})` : "Pre-filled when Lazyfold opens");
     $("conf").value = Math.round((s.auto_min_confidence || 0.9) * 100); $("conf").oninput();
     $("accept-min").value = Math.round((s.auto_min_accept_prob || 0.85) * 100);
     const grid = $("trusted"); grid.replaceChildren();
@@ -1122,8 +1121,8 @@ async function loadAI() {
 }
 $("ai-setup").onclick = async () => {
   if (!(await confirmDialog({ title: "Set up local AI?", yes: "Download and set up",
-    body: MAC() ? "SlothFile will install Ollama with Homebrew (if Ollama is not installed yet) and download Gemma 4 (about 4.3 GB) once. It runs entirely on this Mac."
-      : "SlothFile will install Ollama (from the official Windows package) and download Gemma 4 (about 4.3 GB) once. It runs entirely on this PC." }))) return;
+    body: MAC() ? "Lazyfold will install Ollama with Homebrew (if Ollama is not installed yet) and download Gemma 4 (about 4.3 GB) once. It runs entirely on this Mac."
+      : "Lazyfold will install Ollama (from the official Windows package) and download Gemma 4 (about 4.3 GB) once. It runs entirely on this PC." }))) return;
   $("ai-setup").disabled = true; $("ai-progress").classList.remove("hidden");
   const bar = $("ai-progress").querySelector(".progress");
   try {
@@ -1139,7 +1138,7 @@ async function loadPredictor() {
     const p = await api("/api/predictor"); const h = p.history || {};
     $("pred-title").textContent = !p.available ? "Smart predictions are not included in this edition"
       : h.ready ? "Smart predictions are active" : "Learning which moves you accept";
-    $("pred-text").textContent = !p.available ? "Install the Full edition of SlothFile to let it learn which moves you accept."
+    $("pred-text").textContent = !p.available ? "Install the Full edition of Lazyfold to let it learn which moves you accept."
       : h.ready ? `Learned from ${plural(h.rows, "reviewed move")}. The automatic tidy only moves files you'd very likely approve.`
       : (h.rows || 0) < (p.min_rows || 30)
         ? `${h.rows || 0} of ${p.min_rows || 30} reviewed moves so far. Then it starts helping.`

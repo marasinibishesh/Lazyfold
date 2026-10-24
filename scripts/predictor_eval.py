@@ -2,13 +2,13 @@
 
 This is NOT an evaluation on real users. It builds synthetic review histories
 for three *simulated* users with consistent-but-noisy preferences, on plans made
-from slothfile.demo fixtures with randomized names, sizes, ages and download
+from lazyfold.demo fixtures with randomized names, sizes, ages and download
 hosts, then compares three ways of guessing "would this user accept the move
 unchanged?":
 
   (a) baseline   - accept everything (what auto-run does today for trusted files)
-  (b) learned    - slothfile.learning rules replayed on the same history
-  (c) tabpfn     - slothfile.predict.fit_predict_rows (TabPFN v2, CPU)
+  (b) learned    - lazyfold.learning rules replayed on the same history
+  (c) tabpfn     - lazyfold.predict.fit_predict_rows (TabPFN v2, CPU)
 
 For each user it trains on the first N reviews (N = 30, 60, 120) and tests on
 the next 60, reporting accuracy, ROC AUC and "auto-run precision": of the files
@@ -86,9 +86,9 @@ USERS = {"A (no screenshots)": user_a, "B (re-files hr.contoso docs)": user_b, "
 # ----------------------------------------------------------------- data
 
 def templates():
-    """Move proposals SlothFile makes for the demo fixtures (rules only)."""
-    from slothfile import service
-    from slothfile.demo import create_demo_folder
+    """Move proposals Lazyfold makes for the demo fixtures (rules only)."""
+    from lazyfold import service
+    from lazyfold.demo import create_demo_folder
     with tempfile.TemporaryDirectory() as td:
         root = Path(td) / "Downloads"
         create_demo_folder(root)
@@ -99,7 +99,7 @@ def templates():
 
 def make_history(tpls, user, rng, n_reviews):
     """Sequence of (proposal, plan, label, outcome), plans of PLAN_SIZE files."""
-    from slothfile.models import Plan
+    from lazyfold.models import Plan
     out = []
     t = datetime(2026, 3, 1, 9, 0)
     i = 0
@@ -147,12 +147,12 @@ def metrics(y, scores, trusted):
 # ----------------------------------------------------------------- methods
 
 def learned_scores(train, test):
-    """Replay the training reviews through slothfile.learning in a fresh state
+    """Replay the training reviews through lazyfold.learning in a fresh state
     dir; a test file is 'rejected' when a learned rule would change it."""
-    from slothfile import learning
-    from slothfile.models import FileRecord, Plan
+    from lazyfold import learning
+    from lazyfold.models import FileRecord, Plan
     with tempfile.TemporaryDirectory() as td:
-        os.environ["SLOTHFILE_HOME"] = td
+        os.environ["LAZYFOLD_HOME"] = td
         learning._invalidate()
         by_plan: dict[str, list] = {}
         for p, plan, label, outcome in train:
@@ -177,7 +177,7 @@ def learned_scores(train, test):
 
 
 def tabpfn_scores(train, test):
-    from slothfile import predict, reviewlog
+    from lazyfold import predict, reviewlog
     rows = [{"plan_id": plan.plan_id, "features": reviewlog.features(p, plan), "label": label}
             for p, plan, label, _ in train]
     feats = [reviewlog.features(p, plan) for p, plan, *_ in test]
@@ -196,20 +196,20 @@ def main() -> int:
     ap.add_argument("--seeds", type=int, default=3)
     args = ap.parse_args()
     print("SIMULATION - synthetic users and synthetic files, not real review data.\n")
-    previous = os.environ.get("SLOTHFILE_HOME")
-    with tempfile.TemporaryDirectory(prefix="slothfile-eval-") as home:  # removed afterwards
-        os.environ["SLOTHFILE_HOME"] = home
+    previous = os.environ.get("LAZYFOLD_HOME")
+    with tempfile.TemporaryDirectory(prefix="lazyfold-eval-") as home:  # removed afterwards
+        os.environ["LAZYFOLD_HOME"] = home
         try:
             return _run(args, home)
         finally:
             if previous is None:
-                os.environ.pop("SLOTHFILE_HOME", None)
+                os.environ.pop("LAZYFOLD_HOME", None)
             else:
-                os.environ["SLOTHFILE_HOME"] = previous
+                os.environ["LAZYFOLD_HOME"] = previous
 
 
 def _run(args, home: str) -> int:
-    from slothfile import automation, predict, settings
+    from lazyfold import automation, predict, settings
     ok, why = predict.available()
     if not ok:
         print(f"TabPFN unavailable: {why}")
@@ -231,7 +231,7 @@ def _run(args, home: str) -> int:
                 trusted = [automation.trusted(p, s) for p, *_ in test]
                 per["baseline"].append(metrics(y, [1.0] * len(y), trusted))
                 per["learned"].append(metrics(y, learned_scores(train, test), trusted))
-                os.environ["SLOTHFILE_HOME"] = home
+                os.environ["LAZYFOLD_HOME"] = home
                 probs, took = tabpfn_scores(train, test)
                 timings.append({"train_rows": n, "test_rows": len(test), "seconds": round(took, 2)})
                 per["tabpfn"].append(metrics(y, probs, trusted))
@@ -256,7 +256,7 @@ def _run(args, home: str) -> int:
           f"median {statistics.median(secs):.2f} s, max {max(secs):.2f} s")
     from importlib.metadata import version
     out = {"simulation": True,
-           "note": "Synthetic users/files from slothfile.demo fixtures; not real review data.",
+           "note": "Synthetic users/files from lazyfold.demo fixtures; not real review data.",
            "created": datetime.now().isoformat(timespec="seconds"), "threshold": THRESHOLD,
            "test_size": TEST_SIZE, "seeds": args.seeds, "torch": version("torch"), "tabpfn": version("tabpfn"),
            "results": results, "timings": timings}

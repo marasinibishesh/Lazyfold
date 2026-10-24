@@ -7,8 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from slothfile import automation, predict, reviewlog, service, settings
-from slothfile.models import Plan, Proposal
+from lazyfold import automation, predict, reviewlog, service, settings
+from lazyfold.models import Plan, Proposal
 
 DAY_NS = 86400 * 10**9
 NOW_NS = 1_788_000_000 * 10**9  # ~2026-08-29

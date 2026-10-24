@@ -10,12 +10,12 @@ from pathlib import Path
 import pytest
 
 from conftest import snapshot, write_old
-from slothfile import executor
-from slothfile.demo import FAKE_EXE, make_pdf
-from slothfile.executor import NeedsRecovery, apply_plan, incomplete_runs, recover, undo_run
-from slothfile.models import Plan
-from slothfile.planner import build_plan
-from slothfile.scanner import scan_folder
+from lazyfold import executor
+from lazyfold.demo import FAKE_EXE, make_pdf
+from lazyfold.executor import NeedsRecovery, apply_plan, incomplete_runs, recover, undo_run
+from lazyfold.models import Plan
+from lazyfold.planner import build_plan
+from lazyfold.scanner import scan_folder
 
 WINDOWS = sys.platform == "win32"
 

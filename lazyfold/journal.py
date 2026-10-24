@@ -16,10 +16,22 @@ from typing import Any, Iterator
 
 
 def state_path() -> Path:
-    """Where SlothFile keeps its state, without creating anything."""
-    env = os.environ.get("SLOTHFILE_HOME")
+    """Where Lazyfold keeps its state, without creating anything."""
+    env = os.environ.get("LAZYFOLD_HOME")
     if env:
         return Path(env)
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "Lazyfold"
+    if os.name == "nt":
+        return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Lazyfold"
+    return Path.home() / ".local" / "state" / "lazyfold"
+
+
+def legacy_state_path() -> Path | None:
+    """Where the app kept its state under its previous name (SlothFile), or
+    None when an explicit LAZYFOLD_HOME is in use."""
+    if os.environ.get("LAZYFOLD_HOME"):
+        return None
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "SlothFile"
     if os.name == "nt":
@@ -27,8 +39,26 @@ def state_path() -> Path:
     return Path.home() / ".local" / "state" / "slothfile"
 
 
+def _adopt_legacy_state(base: Path) -> None:
+    """First start after the rename: copy the old state folder (review
+    history, undo journals, settings, learned rules) so nothing is lost. The
+    old folder is left untouched. Any failure just means a fresh start."""
+    old = legacy_state_path()
+    if old is None or base.exists() or not old.is_dir() or old.is_symlink():
+        return
+    import shutil
+    tmp = base.with_name(base.name + ".migrating")
+    try:
+        shutil.rmtree(tmp, ignore_errors=True)
+        shutil.copytree(old, tmp, symlinks=True)
+        os.rename(tmp, base)  # appears complete or not at all
+    except OSError:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def state_dir() -> Path:
     base = state_path()
+    _adopt_legacy_state(base)
     base.mkdir(parents=True, exist_ok=True)
     return base
 

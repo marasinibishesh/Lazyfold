@@ -9,13 +9,13 @@ from pathlib import Path
 import pytest
 
 from conftest import snapshot, write_old
-from slothfile import executor, winshell
-from slothfile.demo import FAKE_EXE, make_pdf
-from slothfile.executor import apply_plan, recover, undo_run
-from slothfile.models import FileRecord, Plan
-from slothfile.planner import PlanOptions, build_plan
-from slothfile.scanner import scan_folder
-from slothfile.service import apply_edits, execute, load_plan, save_plan
+from lazyfold import executor, winshell
+from lazyfold.demo import FAKE_EXE, make_pdf
+from lazyfold.executor import apply_plan, recover, undo_run
+from lazyfold.models import FileRecord, Plan
+from lazyfold.planner import PlanOptions, build_plan
+from lazyfold.scanner import scan_folder
+from lazyfold.service import apply_edits, execute, load_plan, save_plan
 
 DAY = 86400
 
@@ -251,7 +251,7 @@ def test_crash_during_recycle_is_recovered(tmp_path, monkeypatch, fake_bin):
 # --- learning through real reviews ----------------------------------------------------
 
 def test_folder_override_moves_there_and_is_learned(tmp_path):
-    from slothfile import learning
+    from lazyfold import learning
     for round_ in range(2):
         root = tmp_path / f"dl{round_}"
         rec_name = f"statement{round_}.xyzdoc.txt"
@@ -280,7 +280,7 @@ def test_override_to_unknown_or_duplicates_folder_refused(demo):
     root, _ = demo
     plan = plan_for(root)
     name = next(p.rel_path for p in plan.proposals if p.action == "move" and p.category != "duplicates")
-    from slothfile.pathsafe import UnsafePath
+    from lazyfold.pathsafe import UnsafePath
     for bad in ("..\\evil", "duplicates", "Windows"):
         with pytest.raises(UnsafePath):
             apply_edits(load_plan_copy(plan), overrides={name: bad})

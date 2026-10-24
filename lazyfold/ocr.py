@@ -36,7 +36,7 @@ def _run_capture(paths: list[str], timeout: float) -> tuple[int | None, bytes, b
     exe = _powershell()
     if exe is None:
         return None, b"", False
-    with resources.as_file(resources.files("slothfile") / "ocr.ps1") as script:
+    with resources.as_file(resources.files("lazyfold") / "ocr.ps1") as script:
         cmd = [exe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                "-File", str(script), *paths]
         try:
@@ -274,7 +274,7 @@ def ocr_pdf(path: Path, workdir: Path) -> str:
     created: list[Path] = []
     try:
         for i, (ext, data) in enumerate(images):
-            target = workdir / f"slothfile-ocr-{i:03d}{ext}"
+            target = workdir / f"lazyfold-ocr-{i:03d}{ext}"
             with open(target, "xb") as fh:  # never overwrite something that is already there
                 created.append(target)
                 fh.write(data)

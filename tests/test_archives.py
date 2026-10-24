@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from slothfile import archives
-from slothfile.archives import ArchiveError, extract_zip, inspect_zip, remove_extracted
+from lazyfold import archives
+from lazyfold.archives import ArchiveError, extract_zip, inspect_zip, remove_extracted
 
 
 def make_zip(path: Path, members: dict[str, bytes], compression=zipfile.ZIP_DEFLATED) -> Path:

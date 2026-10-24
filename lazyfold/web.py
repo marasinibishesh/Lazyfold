@@ -33,7 +33,7 @@ MAX_BODY = 2 * 1024 * 1024
 _PICK_FOLDER = (
     "import tkinter as tk\nfrom tkinter import filedialog\n"
     "r = tk.Tk(); r.withdraw(); r.attributes('-topmost', True)\n"
-    "print(filedialog.askdirectory(title='Choose a folder for SlothFile to tidy') or '')\n"
+    "print(filedialog.askdirectory(title='Choose a folder for Lazyfold to tidy') or '')\n"
 )
 
 
@@ -173,7 +173,7 @@ def _report_dict(report) -> dict:
 
 def make_handler(app: App):
     class Handler(BaseHTTPRequestHandler):
-        server_version = "SlothFile"
+        server_version = "Lazyfold"
         sys_version = ""
 
         def log_message(self, fmt, *args):  # keep the console quiet; no file names in logs
@@ -204,7 +204,7 @@ def make_handler(app: App):
             origin = self.headers.get("Origin")
             if origin and urlparse(origin).netloc not in app.allowed_hosts:
                 return False
-            return hmac.compare_digest(self.headers.get("X-SlothFile-Token", ""), app.token)
+            return hmac.compare_digest(self.headers.get("X-Lazyfold-Token", ""), app.token)
 
         def do_GET(self):
             if not self._host_ok():
@@ -214,9 +214,9 @@ def make_handler(app: App):
                 return self._send(204, b"", "image/x-icon")
             if url.path == "/":
                 if not hmac.compare_digest(parse_qs(url.query).get("t", [""])[0], app.token):
-                    return self._send(403, b"Open SlothFile using the link printed in the terminal.", "text/plain")
+                    return self._send(403, b"Open Lazyfold using the link printed in the terminal.", "text/plain")
                 nonce = secrets.token_urlsafe(16)
-                html = resources.files("slothfile").joinpath("ui.html").read_text(encoding="utf-8")
+                html = resources.files("lazyfold").joinpath("ui.html").read_text(encoding="utf-8")
                 html = html.replace("{{NONCE}}", nonce)
                 csp = (f"default-src 'none'; script-src 'nonce-{nonce}'; style-src 'nonce-{nonce}'; "
                        "connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; "
@@ -453,7 +453,7 @@ def serve(folder: str | None = None, *, port: int = 0, open_browser: bool = True
     real_port = httpd.server_address[1]
     app.allowed_hosts = {f"127.0.0.1:{real_port}", f"localhost:{real_port}"}
     url = f"http://127.0.0.1:{real_port}/?t={app.token}"
-    print(f"SlothFile is running locally at:\n  {url}\nPress Ctrl+C to stop.", flush=True)
+    print(f"Lazyfold is running locally at:\n  {url}\nPress Ctrl+C to stop.", flush=True)
     if open_browser:
         webbrowser.open(url)
     try:

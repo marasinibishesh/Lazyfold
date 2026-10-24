@@ -47,7 +47,7 @@ log = logging.getLogger(__name__)
 # AUMID of Windows PowerShell: always registered, so toasts show without
 # installing a Start-menu shortcut of our own.
 TOAST_APP_ID = r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
-TASK_FOLDER = "SlothFile"
+TASK_FOLDER = "Lazyfold"
 MAX_TR = 261  # schtasks /TR limit
 _NO_WINDOW = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW
 
@@ -58,7 +58,7 @@ _TOAST_PS = (
     "[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime]|Out-Null;"
     "[Windows.Data.Xml.Dom.XmlDocument,Windows.Data.Xml.Dom.XmlDocument,ContentType=WindowsRuntime]|Out-Null;"
     "$x=New-Object Windows.Data.Xml.Dom.XmlDocument;"
-    "$x.LoadXml($env:SLOTHFILE_TOAST_XML);"
+    "$x.LoadXml($env:LAZYFOLD_TOAST_XML);"
     "$t=[Windows.UI.Notifications.ToastNotification]::new($x);"
     f"[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{TOAST_APP_ID}').Show($t)"
 )
@@ -107,7 +107,7 @@ def notify(title: str, body: str) -> bool:
     if os.name != "nt":
         return False
     try:
-        env = {**os.environ, "SLOTHFILE_TOAST_XML": toast_xml(title, body)}
+        env = {**os.environ, "LAZYFOLD_TOAST_XML": toast_xml(title, body)}
         r = subprocess.run([_powershell(), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                             "-Command", _TOAST_PS],
                            env=env, capture_output=True, timeout=30, creationflags=_NO_WINDOW,
@@ -238,14 +238,14 @@ def _message(folder: Path, moved: int, waiting: int, held: int = 0) -> tuple[str
     files = lambda n: f"{n} file{'s' if n != 1 else ''}"  # noqa: E731
     why = f" ({held} held back because you usually change files like these)" if held > 0 else ""
     if moved and waiting:
-        body = (f"SlothFile tidied {files(moved)} in {name}. {files(waiting)} "
-                f"{'is' if waiting == 1 else 'are'} waiting for your review{why} - open SlothFile.")
+        body = (f"Lazyfold tidied {files(moved)} in {name}. {files(waiting)} "
+                f"{'is' if waiting == 1 else 'are'} waiting for your review{why} - open Lazyfold.")
     elif moved:
-        body = f"SlothFile tidied {files(moved)} in {name}. You can undo this in SlothFile."
+        body = f"Lazyfold tidied {files(moved)} in {name}. You can undo this in Lazyfold."
     else:
         body = (f"{files(waiting)} in {name} {'is' if waiting == 1 else 'are'} "
-                f"ready for your review{why} - open SlothFile.")
-    return "SlothFile", body
+                f"ready for your review{why} - open Lazyfold.")
+    return "Lazyfold", body
 
 
 def auto_run(folder: str | Path, *, apply_trusted: bool = True, settings: dict | None = None,
@@ -257,7 +257,7 @@ def auto_run(folder: str | Path, *, apply_trusted: bool = True, settings: dict |
                            "notified": False}
     with _RunLock() as lock:
         if not lock.held:
-            out["error"] = "another automatic SlothFile run is in progress"
+            out["error"] = "another automatic Lazyfold run is in progress"
             return out
         try:
             executor.check_root(root)
@@ -265,7 +265,7 @@ def auto_run(folder: str | Path, *, apply_trusted: bool = True, settings: dict |
             plan, _status = service.make_plan(root, model=DEFAULT_MODEL if settings["use_model"] else None)
         except (OSError, ValueError, UnsafePath) as e:
             out["error"] = f"could not scan {root}: {e}"
-            out["notified"] = notify_fn("SlothFile could not tidy a folder", f"{root.name or root}: {e}")
+            out["notified"] = notify_fn("Lazyfold could not tidy a folder", f"{root.name or root}: {e}")
             return out
         out["plan_id"] = plan.plan_id
         approved = {p.rel_path for p in plan.proposals if trusted(p, settings)} if apply_trusted else set()
@@ -315,10 +315,10 @@ def auto_run(folder: str | Path, *, apply_trusted: bool = True, settings: dict |
         if "error" in out:
             if needs_recovery:
                 body = (f"An earlier run in {root.name or root} was interrupted. "
-                        "Open SlothFile to finish or undo it; nothing was moved this time.")
+                        "Open Lazyfold to finish or undo it; nothing was moved this time.")
             else:
                 body = out["error"]
-            out["notified"] = notify_fn("SlothFile needs your attention", body)
+            out["notified"] = notify_fn("Lazyfold needs your attention", body)
             return out
         if out["moved"] + out["waiting"] >= max(1, settings["notify_min_files"]):
             out["notified"] = notify_fn(*_message(root, out["moved"], out["waiting"], held))
@@ -383,23 +383,23 @@ def watch(folder: str | Path, *, interval: float = 30, settle_seconds: float = 1
 
 
 def frozen() -> bool:
-    """True inside the installed SlothFile.exe / SlothFile.app (PyInstaller build)."""
+    """True inside the installed Lazyfold.exe / Lazyfold.app (PyInstaller build)."""
     return bool(getattr(sys, "frozen", False))
 
 
-# Inside SlothFile.app both executables sit in Contents/MacOS.
-MAC_GUI_EXE = "SlothFile"
-MAC_CLI_EXE = "SlothFileCLI"
+# Inside Lazyfold.app both executables sit in Contents/MacOS.
+MAC_GUI_EXE = "Lazyfold"
+MAC_CLI_EXE = "LazyfoldCLI"
 
 
 def gui_python(python_exe: str | None = None) -> str:
     """pythonw.exe next to the interpreter (no console window), else the
-    interpreter itself. In the installed app: SlothFile.exe itself (macOS:
-    SlothFile.app/Contents/MacOS/SlothFile)."""
+    interpreter itself. In the installed app: Lazyfold.exe itself (macOS:
+    Lazyfold.app/Contents/MacOS/Lazyfold)."""
     if frozen() and python_exe is None:
-        # Prefer the windowless SlothFile.exe even when running from SlothFileCLI.exe,
+        # Prefer the windowless Lazyfold.exe even when running from LazyfoldCLI.exe,
         # so scheduled runs and the right-click menu never flash a console.
-        gui = Path(sys.executable).with_name(MAC_GUI_EXE if _is_mac() else "SlothFile.exe")
+        gui = Path(sys.executable).with_name(MAC_GUI_EXE if _is_mac() else "Lazyfold.exe")
         return str(gui if gui.is_file() else sys.executable)
     exe = Path(python_exe or sys.executable)
     if _is_mac():
@@ -413,26 +413,26 @@ def launch_argv(python_exe: str | None = None) -> list[str]:
     Action never get a command-line string to re-parse)."""
     if frozen() and python_exe is None:
         return [gui_python()]
-    return [gui_python(python_exe), "-m", "slothfile"]
+    return [gui_python(python_exe), "-m", "lazyfold"]
 
 
 def cli_argv(python_exe: str | None = None) -> list[str]:
-    """Headless runs on macOS (launchd): SlothFile.app/Contents/MacOS/SlothFileCLI
-    when installed, else python -m slothfile."""
+    """Headless runs on macOS (launchd): Lazyfold.app/Contents/MacOS/LazyfoldCLI
+    when installed, else python -m lazyfold."""
     if frozen() and python_exe is None:
         cli = Path(sys.executable).with_name(MAC_CLI_EXE)
         return [str(cli if cli.is_file() else sys.executable)]
-    return [python_exe or sys.executable, "-m", "slothfile"]
+    return [python_exe or sys.executable, "-m", "lazyfold"]
 
 
 def launch_prefix(python_exe: str | None = None) -> str:
-    """How to start SlothFile from Task Scheduler, the right-click menu or
-    Win+R: the installed exe directly, or pythonw -m slothfile for a source checkout."""
+    """How to start Lazyfold from Task Scheduler, the right-click menu or
+    Win+R: the installed exe directly, or pythonw -m lazyfold for a source checkout."""
     if _is_mac():
         return shlex.join(launch_argv(python_exe))
     if frozen() and python_exe is None:
         return _quote_arg(gui_python())
-    return f"{_quote_arg(gui_python(python_exe))} -m slothfile"
+    return f"{_quote_arg(gui_python(python_exe))} -m lazyfold"
 
 
 def _quote_arg(path: str) -> str:
@@ -494,7 +494,7 @@ def _tr(args: str, python_exe: str | None = None) -> str:
     tr = f"{launch_prefix(python_exe)} {args}"
     if len(tr) > MAX_TR:
         raise ValueError(f"the task command is {len(tr)} characters; Task Scheduler allows at most {MAX_TR}. "
-                         "Move SlothFile or the folder to a shorter path.")
+                         "Move Lazyfold or the folder to a shorter path.")
     return tr
 
 
@@ -529,13 +529,13 @@ def schedule_weekly_summary(day: str = "SUN", at: str = "18:00", *, python_exe: 
 
 
 def _own_task_name(name: str) -> str:
-    """Accept 'SlothFile\\X' or '\\SlothFile\\X'; refuse anything else."""
+    """Accept 'Lazyfold\\X' or '\\Lazyfold\\X'; refuse anything else."""
     if not isinstance(name, str):
         raise ValueError("task name must be text")
     n = name.lstrip("\\")
     head, _, leaf = n.partition("\\")
     if head.lower() != TASK_FOLDER.lower() or not leaf or "\\" in leaf or '"' in leaf or not leaf.strip():
-        raise ValueError(f"{name!r} is not a SlothFile task")
+        raise ValueError(f"{name!r} is not a Lazyfold task")
     return f"{TASK_FOLDER}\\{leaf}"
 
 
@@ -566,8 +566,8 @@ def _task_command(name: str) -> str | None:
 
 
 def list_tasks(*, with_commands: bool = True) -> list[dict]:
-    """Tasks under \\SlothFile\\ only: name, next run, status (and command).
-    macOS: SlothFile's own LaunchAgents (com.slothfile.*.plist) only."""
+    """Tasks under \\Lazyfold\\ only: name, next run, status (and command).
+    macOS: Lazyfold's own LaunchAgents (com.lazyfold.*.plist) only."""
     if _is_mac():
         return _mac_list(with_commands=with_commands)
     r = _schtasks(["/Query", "/TN", f"\\{TASK_FOLDER}\\", "/FO", "CSV", "/NH"])
@@ -592,7 +592,7 @@ def list_tasks(*, with_commands: bool = True) -> list[dict]:
 # macOS: launchd LaunchAgents (current user, no elevation)
 
 
-LAUNCHD_PREFIX = "com.slothfile."
+LAUNCHD_PREFIX = "com.lazyfold."
 _LAUNCHCTL = "/bin/launchctl"
 _LABEL_LEAF = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
 _LAUNCHD_WEEKDAY = {"SUN": 0, "MON": 1, "TUE": 2, "WED": 3, "THU": 4, "FRI": 5, "SAT": 6}
@@ -608,13 +608,13 @@ def _uid() -> int:
 
 
 def _mac_label(name: str) -> str:
-    """Accept only 'com.slothfile.<leaf>' with a plain lower-case leaf: no
+    """Accept only 'com.lazyfold.<leaf>' with a plain lower-case leaf: no
     dots, slashes or '..', so a name can never point outside our own plists."""
     if not isinstance(name, str):
         raise ValueError("task name must be text")
     leaf = name[len(LAUNCHD_PREFIX):] if name.startswith(LAUNCHD_PREFIX) else None
     if not leaf or not _LABEL_LEAF.fullmatch(leaf):
-        raise ValueError(f"{name!r} is not a SlothFile task")
+        raise ValueError(f"{name!r} is not a Lazyfold task")
     return LAUNCHD_PREFIX + leaf
 
 
@@ -623,7 +623,7 @@ def _plist_path(label: str) -> Path:
     d = _launch_agents_dir()
     p = d / f"{label}.plist"
     if p.parent != d:  # belt and braces: _mac_label already refuses separators
-        raise ValueError(f"{label!r} is not a SlothFile task")
+        raise ValueError(f"{label!r} is not a Lazyfold task")
     return p
 
 
@@ -699,7 +699,7 @@ def _mac_remove(name: str) -> None:
     else:
         _launchctl(["bootout", f"gui/{_uid()}/{label}"])  # loaded without a file: unload by label
     if not existed:
-        raise RuntimeError(f"launchd could not remove {label}: no such SlothFile task")
+        raise RuntimeError(f"launchd could not remove {label}: no such Lazyfold task")
     path.unlink()  # our own file; a link is removed itself, never its target
 
 
@@ -759,12 +759,12 @@ def _mac_list(*, with_commands: bool = True) -> list[dict]:
 
 
 # --------------------------------------------------------------------------
-# macOS: Finder Quick Action "Tidy with SlothFile" (~/Library/Services)
+# macOS: Finder Quick Action "Tidy with Lazyfold" (~/Library/Services)
 
 
-SERVICE_BUNDLE = "Tidy with SlothFile.workflow"
-_SERVICE_MARKER = "SlothFileQuickAction"
-_SCRIPT_MARKER = "# SlothFile Quick Action"
+SERVICE_BUNDLE = "Tidy with Lazyfold.workflow"
+_SERVICE_MARKER = "LazyfoldQuickAction"
+_SCRIPT_MARKER = "# Lazyfold Quick Action"
 
 
 def _services_dir() -> Path:
@@ -778,7 +778,7 @@ def workflow_path() -> Path:
 def workflow_script(python_exe: str | None = None) -> str:
     """The Run Shell Script body. The selected folder arrives as "$1"
     (inputMethod 1 = "as arguments"); it is never part of this text, so a
-    folder name can never become shell code. Only SlothFile's own program
+    folder name can never become shell code. Only Lazyfold's own program
     path is written into it, quoted with shlex."""
     return (f"{_SCRIPT_MARKER}: the folder Finder passes is \"$1\".\n"
             "[ -d \"$1\" ] || exit 0\n"
@@ -885,7 +885,7 @@ def _refresh_services() -> None:
 def _mac_install_quick_action(python_exe: str | None = None) -> Path:
     final = workflow_path()
     if os.path.lexists(final) and not _workflow_is_ours(final):
-        raise RuntimeError(f"{final} exists and was not made by SlothFile; leaving it alone")
+        raise RuntimeError(f"{final} exists and was not made by Lazyfold; leaving it alone")
     final.parent.mkdir(parents=True, exist_ok=True)
     tmp = final.with_name(f".{SERVICE_BUNDLE}.{uuid.uuid4().hex[:8]}.tmp")
     try:
@@ -909,7 +909,7 @@ def _mac_uninstall_quick_action() -> list[str]:
     if not os.path.lexists(path):
         return []
     if not _workflow_is_ours(path):
-        log.warning("kept %s: it was not made by SlothFile", path)
+        log.warning("kept %s: it was not made by Lazyfold", path)
         return [str(path)]
     try:
         shutil.rmtree(path)
@@ -920,8 +920,8 @@ def _mac_uninstall_quick_action() -> list[str]:
     return []
 
 
-RUN_ALIAS_MAC_NOTE = ("macOS has no Windows+R box: press Command+Space and type SlothFile. "
-                      "Spotlight already finds SlothFile.app, so nothing was changed.")
+RUN_ALIAS_MAC_NOTE = ("macOS has no Windows+R box: press Command+Space and type Lazyfold. "
+                      "Spotlight already finds Lazyfold.app, so nothing was changed.")
 
 
 # --------------------------------------------------------------------------
@@ -930,8 +930,8 @@ RUN_ALIAS_MAC_NOTE = ("macOS has no Windows+R box: press Command+Space and type 
 
 CLASSES = r"Software\Classes"
 APP_PATHS = r"Software\Microsoft\Windows\CurrentVersion\App Paths"
-_MENU_KEYS = (r"Directory\shell\SlothFile", r"Directory\Background\shell\SlothFile")
-MENU_TEXT = "Tidy with SlothFile"
+_MENU_KEYS = (r"Directory\shell\Lazyfold", r"Directory\Background\shell\Lazyfold")
+MENU_TEXT = "Tidy with Lazyfold"
 
 
 def _winreg():
@@ -946,7 +946,7 @@ def menu_command(python_exe: str | None = None) -> str:
 
 
 def install_context_menu(python_exe: str | None = None, *, base: str = CLASSES) -> None:
-    """Add 'Tidy with SlothFile' to folder and folder-background menus. On
+    """Add 'Tidy with Lazyfold' to folder and folder-background menus. On
     Windows 11 it appears under 'Show more options'. On macOS it is a Finder
     Quick Action in ~/Library/Services."""
     if _is_mac():
@@ -969,8 +969,8 @@ def _is_ours(wr, path: str) -> bool:
             value, _ = wr.QueryValueEx(k, "")
     except OSError:
         return False
-    return isinstance(value, str) and ("-m slothfile" in value
-                                       or ("slothfile" in value.lower() and value.rstrip().endswith('ui "%V"')))
+    return isinstance(value, str) and ("-m lazyfold" in value
+                                       or ("lazyfold" in value.lower() and value.rstrip().endswith('ui "%V"')))
 
 
 def _subkeys(wr, path: str) -> list[str]:
@@ -991,7 +991,7 @@ def _subkeys(wr, path: str) -> list[str]:
 
 def uninstall_context_menu(*, base: str = CLASSES) -> list[str]:
     """Remove exactly the two keys install_context_menu made. Our "command"
-    subkey is always removed; a SlothFile key that also holds subkeys someone
+    subkey is always removed; a Lazyfold key that also holds subkeys someone
     else added is kept (DeleteKey would refuse it anyway) and reported, and
     the other key is still handled. Returns the keys that were left behind."""
     if _is_mac():
@@ -1031,9 +1031,9 @@ def context_menu_installed(*, base: str = CLASSES) -> bool:
 
 def _launcher_path() -> Path:
     # Computed only: checking or removing the alias (e.g. during uninstall)
-    # must not create SlothFile's data folder.
+    # must not create Lazyfold's data folder.
     from .journal import state_path
-    return state_path() / "launch" / "slothfile.cmd"
+    return state_path() / "launch" / "lazyfold.cmd"
 
 
 _BATCH_UNSAFE = '%"^!'
@@ -1049,13 +1049,13 @@ def launcher_script(py: str) -> bytes:
     if bad:
         raise ValueError(f"python path cannot contain {' '.join(bad)}: {py}")
     return ("@echo off\r\nchcp 65001>nul\r\n"
-            f'start "" "{py}" -m slothfile ui\r\n').encode("utf-8")
+            f'start "" "{py}" -m lazyfold ui\r\n').encode("utf-8")
 
 
 def install_run_alias(python_exe: str | None = None, *, base: str = APP_PATHS) -> Path:
-    """Let the user type 'slothfile' in Win+R. App Paths points at a tiny
-    launcher in SlothFile's own folder that starts the UI without a console.
-    macOS has no Run box; Spotlight already finds SlothFile.app, so this
+    """Let the user type 'lazyfold' in Win+R. App Paths points at a tiny
+    launcher in Lazyfold's own folder that starts the UI without a console.
+    macOS has no Run box; Spotlight already finds Lazyfold.app, so this
     changes nothing there and returns the app's own path."""
     if _is_mac():
         log.info(RUN_ALIAS_MAC_NOTE)
@@ -1063,14 +1063,14 @@ def install_run_alias(python_exe: str | None = None, *, base: str = APP_PATHS) -
     wr = _winreg()
     if frozen() and python_exe is None:
         # The installed app is a real exe: point App Paths straight at it.
-        with wr.CreateKeyEx(wr.HKEY_CURRENT_USER, f"{base}\\slothfile.exe", 0, wr.KEY_WRITE) as k:
+        with wr.CreateKeyEx(wr.HKEY_CURRENT_USER, f"{base}\\lazyfold.exe", 0, wr.KEY_WRITE) as k:
             wr.SetValueEx(k, "", 0, wr.REG_SZ, gui_python())
         return Path(gui_python())
     data = launcher_script(gui_python(python_exe))
     launcher = _launcher_path()
     launcher.parent.mkdir(parents=True, exist_ok=True)
     launcher.write_bytes(data)  # bytes: no newline translation, no code page
-    with wr.CreateKeyEx(wr.HKEY_CURRENT_USER, f"{base}\\slothfile.exe", 0, wr.KEY_WRITE) as k:
+    with wr.CreateKeyEx(wr.HKEY_CURRENT_USER, f"{base}\\lazyfold.exe", 0, wr.KEY_WRITE) as k:
         wr.SetValueEx(k, "", 0, wr.REG_SZ, str(launcher))
     return launcher
 
@@ -1079,7 +1079,7 @@ def uninstall_run_alias(*, base: str = APP_PATHS) -> None:
     if _is_mac():
         return  # nothing was ever installed on macOS
     wr = _winreg()
-    path = f"{base}\\slothfile.exe"
+    path = f"{base}\\lazyfold.exe"
     try:
         with wr.OpenKey(wr.HKEY_CURRENT_USER, path) as k:
             value, _ = wr.QueryValueEx(k, "")
@@ -1101,7 +1101,7 @@ def run_alias_installed(*, base: str = APP_PATHS) -> bool:
         return False
     wr = _winreg()
     try:
-        with wr.OpenKey(wr.HKEY_CURRENT_USER, f"{base}\\slothfile.exe") as k:
+        with wr.OpenKey(wr.HKEY_CURRENT_USER, f"{base}\\lazyfold.exe") as k:
             value, _ = wr.QueryValueEx(k, "")
     except OSError:
         return False

@@ -1,7 +1,7 @@
 """Learn from the user's corrections in the review screen.
 
 Every reviewed move becomes an observation: what the file looked like (its
-download host and extension), what SlothFile proposed and what the user ended
+download host and extension), what Lazyfold proposed and what the user ended
 up doing (confirmed it, picked another category, or unticked it). When the
 same kind of file is corrected the same way at least twice, and the user has
 not since changed their mind, that correction becomes a rule that steers the

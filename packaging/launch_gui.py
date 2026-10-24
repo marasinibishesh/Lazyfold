@@ -1,8 +1,8 @@
-# Entry point of SlothFile.exe (windowed app). Kept outside the package so
-# PyInstaller sees a plain script; all logic lives in slothfile.desktop.
+# Entry point of Lazyfold.exe (windowed app). Kept outside the package so
+# PyInstaller sees a plain script; all logic lives in lazyfold.desktop.
 import sys
 
-from slothfile.desktop import main
+from lazyfold.desktop import main
 
 if __name__ == "__main__":
     sys.exit(main())

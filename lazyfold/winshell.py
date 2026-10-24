@@ -249,7 +249,7 @@ def recycle(paths: list[Path]) -> dict[str, str | None]:
 
 _RESTORE_PS = r"""
 $ErrorActionPreference = 'Stop'
-$target = $env:SLOTHFILE_RESTORE_TARGET
+$target = $env:LAZYFOLD_RESTORE_TARGET
 if (-not $target) { exit 3 }
 $dir  = [System.IO.Path]::GetDirectoryName($target).TrimEnd('\')
 $leaf = [System.IO.Path]::GetFileName($target)
@@ -306,7 +306,7 @@ def restore_from_recycle_bin(original_path: Path, timeout: float = 30, *,
     target = _long_form(Path(original_path))
     if os.path.lexists(target):
         return False  # restoring would ask to overwrite; let the user decide
-    env = dict(os.environ, SLOTHFILE_RESTORE_TARGET=str(target))
+    env = dict(os.environ, LAZYFOLD_RESTORE_TARGET=str(target))
     encoded = base64.b64encode(_RESTORE_PS.encode("utf-16-le")).decode("ascii")
     deadline = time.monotonic() + timeout
     try:

@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from slothfile import neardup, ocr, photos
-from slothfile.demo import make_pdf
-from slothfile.models import FileRecord
-from slothfile.scanner import scan_folder
+from lazyfold import neardup, ocr, photos
+from lazyfold.demo import make_pdf
+from lazyfold.models import FileRecord
+from lazyfold.scanner import scan_folder
 
 from conftest import write_old
 
@@ -191,11 +191,11 @@ def test_ocr_reads_rendered_text(tmp_path):
 
 @needs_ocr
 def test_ocr_batch_reports_bad_image_without_losing_good_one(tmp_path):
-    good = _text_png(tmp_path / "good.png", ["HELLO SLOTHFILE"])
+    good = _text_png(tmp_path / "good.png", ["HELLO LAZYFOLD"])
     bad = tmp_path / "bad.png"
     bad.write_bytes(b"not an image at all")
     out = ocr.ocr_images([good, bad, tmp_path / "missing.png"])
-    assert "slothfile" in out[str(good)].casefold()
+    assert "lazyfold" in out[str(good)].casefold()
     assert str(bad) not in out and str(tmp_path / "missing.png") not in out
 
 
@@ -325,7 +325,7 @@ def test_dated_subfolder_and_validator():
 
 
 def test_photo_date_from_real_exif(tmp_path):
-    from slothfile.extract import extract_image
+    from lazyfold.extract import extract_image
     im = _scene()
     exif = Image.Exif()
     exif.get_ifd(0x8769)[36867] = "2025:07:14 09:30:00"  # DateTimeOriginal (capture date)
@@ -336,7 +336,7 @@ def test_photo_date_from_real_exif(tmp_path):
 
 
 def test_edit_date_alone_is_not_a_capture_date(tmp_path):
-    from slothfile.extract import extract_image
+    from lazyfold.extract import extract_image
     exif = Image.Exif()
     exif[306] = "2025:07:14 09:30:00"  # DateTime = last edited, not taken
     p = tmp_path / "edited.jpg"

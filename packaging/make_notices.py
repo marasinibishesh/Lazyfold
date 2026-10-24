@@ -36,8 +36,8 @@ def main(edition: str) -> None:
         rows.append((name, d.version, license_of(d), d.metadata.get("Home-page") or ""))
     rows.sort(key=lambda r: r[0].lower())
     full = edition == "full"
-    head = [f"SlothFile{' (Full edition)' if full else ''} - third-party notices", "=" * 48, "",
-            "SlothFile is (c) 2026 Bishesh Marasini and released under the MIT License.", ""]
+    head = [f"Lazyfold{' (Full edition)' if full else ''} - third-party notices", "=" * 48, "",
+            "Lazyfold is (c) 2026 Bishesh Marasini and released under the MIT License.", ""]
     if full:
         head += ["Built with PriorLabs-TabPFN.", "",
                  "This edition includes the TabPFN v2 classifier model weights",
@@ -46,7 +46,7 @@ def main(edition: str) -> None:
                  "attribution clause). A copy is installed next to this file as TabPFN-v2-LICENSE.txt.",
                  "Source of the weights: https://huggingface.co/Prior-Labs/TabPFN-v2-clf",
                  "The tabpfn Python package itself is Apache-2.0 (https://github.com/PriorLabs/TabPFN).",
-                 "SlothFile uses TabPFN only on this computer to estimate whether you would accept a",
+                 "Lazyfold uses TabPFN only on this computer to estimate whether you would accept a",
                  "proposed move. It never trains or distributes a model.", ""]
     head += ["The app also bundles the Python runtime (PSF License) and these packages. Their",
              "license texts are inside the app's _internal folder (in each *.dist-info folder) where",

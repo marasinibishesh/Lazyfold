@@ -7,8 +7,8 @@ import time
 
 import pytest
 
-from slothfile import winshell
-from slothfile.pathsafe import UnsafePath
+from lazyfold import winshell
+from lazyfold.pathsafe import UnsafePath
 
 WINDOWS = sys.platform == "win32"
 
@@ -52,7 +52,7 @@ def test_normal_long_path_is_not_alias(tmp_path):
 
 
 def test_cleanup_revalidate_refuses_stream_alias(tmp_path, monkeypatch):
-    from slothfile import cleanup
+    from lazyfold import cleanup
     root = tmp_path / "Temp"
     root.mkdir()
     keep = root / "~report.pdf"

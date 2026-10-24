@@ -1,7 +1,7 @@
-SlothFile (Full edition) - third-party notices
+Lazyfold (Full edition) - third-party notices
 ================================================
 
-SlothFile is (c) 2026 Bishesh Marasini and released under the MIT License.
+Lazyfold is (c) 2026 Bishesh Marasini and released under the MIT License.
 
 Built with PriorLabs-TabPFN.
 
@@ -11,7 +11,7 @@ unmodified under the Prior Labs License version 1.1 (Apache 2.0 with an added
 attribution clause). A copy is installed next to this file as TabPFN-v2-LICENSE.txt.
 Source of the weights: https://huggingface.co/Prior-Labs/TabPFN-v2-clf
 The tabpfn Python package itself is Apache-2.0 (https://github.com/PriorLabs/TabPFN).
-SlothFile uses TabPFN only on this computer to estimate whether you would accept a
+Lazyfold uses TabPFN only on this computer to estimate whether you would accept a
 proposed move. It never trains or distributes a model.
 
 The app also bundles the Python runtime (PSF License) and these packages. Their

@@ -1,4 +1,4 @@
-# SlothFile OCR helper: Windows' built-in OCR (Windows.Media.Ocr) from Windows PowerShell 5.1.
+# Lazyfold OCR helper: Windows' built-in OCR (Windows.Media.Ocr) from Windows PowerShell 5.1.
 # Usage: powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ocr.ps1 <image> [<image> ...]
 # Prints one compressed JSON object per image: {"path":..., "text":..., "error":...}.
 # Exit code 2 when no OCR engine is available for the user's languages.
