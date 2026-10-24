@@ -1,4 +1,6 @@
-# Optional extras for reading PDF text and photo metadata.
-# Recommended install (from the project folder):  python -m pip install -e ".[content]"
+# Optional extras for reading PDF text and photo metadata (and, on a Mac, Trash and text recognition).
+# Recommended install (from the project folder):  python -m pip install -e ".[content,desktop]"
 pypdf>=6.21.2
 pillow>=12
+pyobjc-framework-Cocoa>=10; sys_platform == "darwin"
+pyobjc-framework-Vision>=10; sys_platform == "darwin"
