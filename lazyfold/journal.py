@@ -23,7 +23,7 @@ def state_path() -> Path:
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "Lazyfold"
     if os.name == "nt":
-        return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Lazyfold"
+        return Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Lazyfold"
     return Path.home() / ".local" / "state" / "lazyfold"
 
 
@@ -35,7 +35,7 @@ def legacy_state_path() -> Path | None:
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "SlothFile"
     if os.name == "nt":
-        return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "SlothFile"
+        return Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "SlothFile"
     return Path.home() / ".local" / "state" / "slothfile"
 
 
