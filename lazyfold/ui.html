@@ -180,6 +180,16 @@ select.input { padding-right: 26px; }
 .item:hover { background: var(--surface-2); }
 .item .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item .newname { color: var(--accent); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rename-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin-top: 3px; padding: 2px 9px 2px 3px;
+  border: 1px solid var(--stroke); border-radius: 999px; background: transparent; color: var(--text-2); font: inherit; font-size: 12px;
+  cursor: pointer; overflow: hidden; white-space: nowrap; transition: background .12s, border-color .12s, color .12s; }
+.rename-chip b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.rename-chip .rc-box { display: inline-grid; place-items: center; width: 16px; height: 16px; flex: none; border-radius: 50%;
+  border: 1px solid var(--stroke-strong, var(--stroke)); font-size: 10px; line-height: 1; }
+.rename-chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft, transparent); }
+.rename-chip.on .rc-box { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rename-chip:not(.on) b { text-decoration: line-through; opacity: .7; }
+.rename-chip:hover { border-color: var(--accent); }
 .item .conf { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); font-size: 12px; white-space: nowrap; }
 .item .conf i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
 .item .conf i.mid { background: #d29200; }
@@ -466,9 +476,13 @@ dialog .dfoot .btn { min-width: 120px; }
         </div>
         <div id="ai-progress" class="hidden"><div class="progress"><div></div></div><p class="tiny m6" id="ai-stage"></p></div>
       </div>
-      <div class="setting last">
+      <div class="setting">
         <div class="label"><b>Use local AI for documents</b><span>When off, Lazyfold uses its built-in rules only.</span></div>
         <span class="switch"><input type="checkbox" data-setting="use_model"><i></i></span>
+      </div>
+      <div class="setting last">
+        <div class="label"><b>Suggest names from what's inside</b><span>Gemma reads documents, slides and spreadsheets and looks at pictures, then suggests a clear name. You approve each one with a click.</span></div>
+        <span class="switch"><input type="checkbox" data-setting="name_from_content"><i></i></span>
       </div>
 
       <div class="section-title">Smart predictions (TabPFN)</div>
@@ -764,15 +778,17 @@ function renderPlan() {
   const worth = moves.filter(isWorth).sort((a, b) => (a.accept_prob ?? 1) - (b.accept_prob ?? 1));
   const groups = {};
   for (const p of moves) if (!isWorth(p)) (groups[folderOf(p)] ||= []).push(p);
-  $("summary").replaceChildren(
+  const renamed = moves.filter((p) => p.new_name).length;
+  $("summary").replaceChildren(...[
     el("span", { class: "chip accent", text: plural(moves.length, "file") + " to organize" }),
+    renamed ? el("span", { class: "chip", text: plural(renamed, "new name") + " suggested" }) : null,
     el("span", { class: "chip", text: new Set(moves.map(folderOf)).size + " folders" }),
     keeps.length ? el("span", { class: "chip", text: keeps.length + " left alone" }) : null,
     recycles.length ? el("span", { class: "chip", text: recycles.length + " old installers" }) : null,
     el("span", { class: "chip", text: (s.model_status || "").startsWith("gemma") ? "Local AI on" : "Built-in rules" }),
     scored && s.predictor ? el("span", { class: "chip", text: s.predictor }) : null,
     worth.length ? el("span", { class: "chip", text: worth.length + " worth a look" }) : null,
-  );
+  ].filter(Boolean));
   const wrap = $("groups"); wrap.replaceChildren();
   if (scored) wrap.append(el("p", { class: "small muted sort-note", text: "Sorted by TabPFN from your past reviews. Nothing has been unticked for you." }));
   let delay = 0;
@@ -789,7 +805,19 @@ function renderPlan() {
       const box = el("input", { type: "checkbox", class: "check move-box", checked: p.approved, title: "Move " + p.rel_path });
       box.dataset.rel = p.rel_path; box.onchange = updateCount; boxes.push(box);
       const nameCol = el("div", { class: "grow" }, el("div", { class: "name", text: p.rel_path, title: p.rel_path }));
-      if (p.new_name) nameCol.append(el("div", { class: "newname", text: "→ " + p.new_name, title: "New name" }));
+      if (p.new_name) {
+        // One click keeps or drops the suggested name; Move files applies it.
+        const chip = el("button", { class: "rename-chip on", title: "Click to keep the current name instead" },
+          el("span", { class: "rc-box", text: "✓" }), el("span", { text: "Rename to " }), el("b", { text: p.new_name }));
+        chip.dataset.rel = p.rel_path;
+        chip.onclick = (ev) => {
+          ev.stopPropagation();
+          const on = chip.classList.toggle("on");
+          chip.title = on ? "Click to keep the current name instead" : "Click to use the suggested name";
+          chip.firstChild.textContent = on ? "✓" : "";
+        };
+        nameCol.append(chip);
+      }
       if (look) {
         const why = held.has(p.rel_path) ? HELD : "You often change moves like this";
         nameCol.append(el("div", { class: "lookwhy", text: `${why} · to ${folderOf(p)}`, title: folderOf(p) }));
@@ -866,6 +894,10 @@ $("approve").onclick = async () => {
     yes: MAC() ? "Move to Trash" : "Recycle", body: recycle.join(", ") + `. You can restore them from the ${BIN()} until you empty it.` });
   const renames = {}, overrides = {};
   document.querySelectorAll("#groups input.rename").forEach((i) => { if (i.value.trim() && i.value.trim() !== i.dataset.orig) renames[i.dataset.rel] = i.value.trim(); });
+  // A suggestion switched off keeps the file's current name.
+  document.querySelectorAll("#groups .rename-chip:not(.on)").forEach((c) => {
+    const base = c.dataset.rel.split(/[\\/]/).pop(); renames[c.dataset.rel] = base.replace(/\.[^.]*$/, "") || base;
+  });
   document.querySelectorAll("#groups select.override").forEach((s) => { if (s.value !== s.dataset.orig) overrides[s.dataset.rel] = s.value; });
   $("approve").disabled = true;
   try {

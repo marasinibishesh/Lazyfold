@@ -100,16 +100,70 @@ def _parse_xml(raw: bytes) -> ElementTree.Element:
     return ElementTree.fromstring(raw)
 
 
-def extract_docx(path: Path) -> tuple[str, dict[str, Any]]:
+def _core_meta(zf: zipfile.ZipFile) -> dict[str, Any]:
+    """Title, author and subject from an Office file's docProps/core.xml."""
     meta: dict[str, Any] = {}
+    core = _read_member(zf, "docProps/core.xml")
+    if core:
+        root = _parse_xml(core)
+        for tag, out in (("title", "title"), ("creator", "author"), ("subject", "subject")):
+            el = root.find(f"{_DC}{tag}")
+            if el is not None and el.text:
+                meta[out] = el.text.strip()[:200]
+    return meta
+
+
+_A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+_S = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+MAX_SLIDES = 20
+
+
+def extract_pptx(path: Path) -> tuple[str, dict[str, Any]]:
+    """Slide text in slide order (the first MAX_SLIDES slides)."""
     with zipfile.ZipFile(path) as zf:
-        core = _read_member(zf, "docProps/core.xml")
-        if core:
-            root = _parse_xml(core)
-            for tag, out in (("title", "title"), ("creator", "author"), ("subject", "subject")):
-                el = root.find(f"{_DC}{tag}")
-                if el is not None and el.text:
-                    meta[out] = el.text.strip()[:200]
+        meta = _core_meta(zf)
+        slides = sorted((n for n in zf.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)),
+                        key=lambda n: int(re.search(r"\d+", n.rsplit("/", 1)[1]).group()))
+        meta["slides"] = len(slides)
+        lines = []
+        for name in slides[:MAX_SLIDES]:
+            raw = _read_member(zf, name)
+            if not raw:
+                continue
+            for p in _parse_xml(raw).iter(f"{_A}p"):
+                line = "".join(t.text or "" for t in p.iter(f"{_A}t"))
+                if line.strip():
+                    lines.append(line)
+            if sum(map(len, lines)) >= MAX_CHARS:
+                break
+    return _clean("\n".join(lines)), meta
+
+
+def extract_xlsx(path: Path) -> tuple[str, dict[str, Any]]:
+    """Sheet names and the workbook's text cells (shared strings)."""
+    with zipfile.ZipFile(path) as zf:
+        meta = _core_meta(zf)
+        parts = []
+        wb = _read_member(zf, "xl/workbook.xml")
+        if wb:
+            names = [s.get("name") for s in _parse_xml(wb).iter(f"{_S}sheet") if s.get("name")]
+            if names:
+                meta["sheets"] = names[:20]
+                parts.append("Sheets: " + ", ".join(names[:20]))
+        shared = _read_member(zf, "xl/sharedStrings.xml")
+        if shared:
+            for si in _parse_xml(shared).iter(f"{_S}si"):
+                cell = "".join(t.text or "" for t in si.iter(f"{_S}t")).strip()
+                if cell:
+                    parts.append(cell)
+                if sum(map(len, parts)) >= MAX_CHARS:
+                    break
+    return _clean("\n".join(parts)), meta
+
+
+def extract_docx(path: Path) -> tuple[str, dict[str, Any]]:
+    with zipfile.ZipFile(path) as zf:
+        meta = _core_meta(zf)
         body = _read_member(zf, "word/document.xml")
         if not body:
             return "", meta
@@ -150,7 +204,42 @@ def extract_image(path: Path) -> tuple[str, dict[str, Any]]:
     return "", meta
 
 
-PARSED_KINDS = {"pdf", "docx", "png", "jpeg", "gif", "bmp", "webp"}
+PREVIEW_PX = 768
+MAX_PREVIEW_BYTES = 40 * 1024 * 1024
+PREVIEW_KINDS = {"png", "jpeg", "gif", "bmp", "webp"}
+
+
+def image_preview(path: Path) -> str:
+    """A small JPEG of an image (base64) for the local vision model to look
+    at, or "" if it can't be made. Runs in the isolated worker like any parser."""
+    try:
+        from PIL import Image  # optional dependency
+    except ImportError:
+        return ""
+    import base64
+    import io
+    Image.MAX_IMAGE_PIXELS = 100_000_000  # decompression-bomb guard
+    if path.stat().st_size > MAX_PREVIEW_BYTES:
+        return ""
+    with Image.open(path) as im:
+        im.draft("RGB", (PREVIEW_PX, PREVIEW_PX))  # JPEG: decode at reduced size
+        im.seek(0)
+        small = im.convert("RGB")
+        small.thumbnail((PREVIEW_PX, PREVIEW_PX))
+        buf = io.BytesIO()
+        small.save(buf, "JPEG", quality=80)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def preview_or_empty(path: Path) -> tuple[str, dict[str, Any], list[str]]:
+    """image_preview in the (text, meta, warnings) shape the worker returns."""
+    try:
+        return image_preview(path), {}, []
+    except Exception as e:  # untrusted input
+        return "", {}, [f"could not make a preview ({type(e).__name__})"]
+
+
+PARSED_KINDS = {"pdf", "docx", "pptx", "xlsx", "png", "jpeg", "gif", "bmp", "webp"}
 PARSE_TIMEOUT = 8.0
 
 
@@ -204,13 +293,21 @@ class IsolatedExtractor:
     def __call__(self, path: Path, kind: str | None, ext: str) -> tuple[str, dict[str, Any], list[str]]:
         if kind not in PARSED_KINDS:
             return extract(path, kind, ext)
+        return self.run(extract, path, kind, ext)
+
+    def preview(self, path: Path) -> str:
+        """A small JPEG preview (base64) of an image, made in the worker."""
+        return self.run(preview_or_empty, path)[0]
+
+    def run(self, fn, *args) -> tuple[str, dict[str, Any], list[str]]:
+        """fn(*args) in the worker, with the timeout and fallback rules."""
         if self._in_process:
-            text, meta, warns = extract(path, kind, ext)
+            text, meta, warns = fn(*args)
             return text, meta, warns + [IN_PROCESS_NOTE]
         from concurrent.futures import TimeoutError as FutTimeout
         from concurrent.futures.process import BrokenProcessPool
         try:
-            fut = self._get_pool().submit(extract, path, kind, ext)
+            fut = self._get_pool().submit(fn, *args)
             out = fut.result(timeout=self.timeout)
             self._worker_ok = True
             return out
@@ -223,7 +320,7 @@ class IsolatedExtractor:
                 # The worker never started (not a hostile file: it failed before
                 # reading anything). Without it no document would be read at all.
                 self._in_process = True
-                text, meta, warns = extract(path, kind, ext)
+                text, meta, warns = fn(*args)
                 return text, meta, warns + [IN_PROCESS_NOTE]
             return "", {}, [f"content parser crashed ({type(e).__name__})"]
 
@@ -246,6 +343,10 @@ def extract(path: Path, kind: str | None, ext: str) -> tuple[str, dict[str, Any]
             text, meta = extract_pdf(path)
         elif kind == "docx":
             text, meta = extract_docx(path)
+        elif kind == "pptx":
+            text, meta = extract_pptx(path)
+        elif kind == "xlsx":
+            text, meta = extract_xlsx(path)
         elif kind in ("png", "jpeg", "gif", "bmp", "webp"):
             text, meta = extract_image(path)
         elif kind is None and ext in TEXT_EXTS:

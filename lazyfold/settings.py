@@ -35,6 +35,9 @@ DEFAULTS: dict[str, Any] = {
     "ocr": True,
     "notify_min_files": 5,
     "use_model": True,
+    # With Gemma: suggest names from the content for any document, slide deck,
+    # spreadsheet or picture, not only for meaningless names. Always a suggestion.
+    "name_from_content": True,
     "use_predictor": True,
     "ollama_path": None,
     "theme": "system",  # system | light | dark

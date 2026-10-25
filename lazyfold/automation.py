@@ -262,7 +262,9 @@ def auto_run(folder: str | Path, *, apply_trusted: bool = True, settings: dict |
         try:
             executor.check_root(root)
             from .llm import DEFAULT_MODEL
-            plan, _status = service.make_plan(root, model=DEFAULT_MODEL if settings["use_model"] else None)
+            # Automatic runs never rename by content: those names wait for the review screen.
+            plan, _status = service.make_plan(root, model=DEFAULT_MODEL if settings["use_model"] else None,
+                                              content_names=False)
         except (OSError, ValueError, UnsafePath) as e:
             out["error"] = f"could not scan {root}: {e}"
             out["notified"] = notify_fn("Lazyfold could not tidy a folder", f"{root.name or root}: {e}")

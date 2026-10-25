@@ -25,18 +25,20 @@ PREDICT_STAGE = "Checking your past reviews (TabPFN)…"
 def make_plan(folder: str | Path, *, model: str | None = None, threshold: float = DEFAULT_THRESHOLD,
               rename: bool = True, progress: Progress | None = None,
               options: PlanOptions | None = None, ocr: bool | None = None,
-              on_stage: Callable[[str], None] | None = None) -> tuple[Plan, str]:
+              on_stage: Callable[[str], None] | None = None,
+              content_names: bool | None = None) -> tuple[Plan, str]:
     """Scan (read-only) and plan. Optional behaviours come from the user's
     settings unless `options`/`ocr` are given explicitly. `on_stage(label)`
     is told about slow steps after the per-file pass (the predictor)."""
     root = Path(os.path.abspath(folder))
-    if options is None or ocr is None:
+    if options is None or ocr is None or content_names is None:
         from .settings import load_settings
         s = load_settings()
         options = options or PlanOptions.from_settings(s)
         ocr = bool(s.get("ocr")) if ocr is None else ocr
+        content_names = bool(s.get("name_from_content", True)) if content_names is None else content_names
     records, stats = scan_folder(root, ocr=ocr)
-    classifier, engine, status = make_classifier(model)
+    classifier, engine, status = make_classifier(model, root=root, content_names=content_names)
     total = len(records)
     counter = {"n": 0}
 
@@ -46,8 +48,12 @@ def make_plan(folder: str | Path, *, model: str | None = None, threshold: float 
             progress(counter["n"], total, rec.name)
         return classifier(rec)
 
-    plan = build_plan(root, records, classifier=tracked, engine=engine, threshold=threshold,
-                      rename=rename, scan_stats={**stats, "model_status": status}, options=options)
+    try:
+        plan = build_plan(root, records, classifier=tracked, engine=engine, threshold=threshold,
+                          rename=rename, scan_stats={**stats, "model_status": status}, options=options)
+    finally:
+        if hasattr(classifier, "close"):
+            classifier.close()  # the picture-preview worker
     if getattr(classifier, "disabled_reason", None):
         plan.scan_stats["model_status"] = f"model stopped mid-run ({classifier.disabled_reason}); rest used rules"
     if getattr(classifier, "calls", 0):

@@ -6,7 +6,7 @@ Created by **[Bishesh Marasini](https://github.com/marasinibishesh)**.
 
 ![Lazyfold review screen: TabPFN lists the moves you'd probably change first (demo folder and demo history)](docs/screenshots/review.png)
 
-- **Organize** — sorts files into folders (Documents, Images, Installers…), gives files like `document (3).pdf` a real name, and shows you the whole plan first. Nothing moves until you approve, and every run can be undone.
+- **Organize** — sorts files into folders (Documents, Images, Installers…) and suggests a clear name for each file from what's inside it, for example `Presentation1.pptx` → `Contoso Coffee Q3 2026 Sales Review.pptx`. One click keeps or drops each name. Nothing moves until you approve, and every run can be undone.
 - **Clean up** — finds temporary files and caches you can safely remove (the safe version of Windows+R → `%temp%`). Files go to the Recycle Bin (the Trash on a Mac) by default.
 - **Automation** — tidy on a schedule, from the right-click menu (a Finder Quick Action on a Mac), or with Windows+R → `lazyfold`.
 - **Private** — everything runs on your computer. No account, no upload.
@@ -32,7 +32,7 @@ It starts after 30 reviews, with at least 5 you accepted and 5 you changed. The 
 
 ### 2. Gemma 4 by Google — reads documents (optional)
 
-Gemma runs locally through [Ollama](https://ollama.com) (*Settings → Local AI → Set up*, about 4.3 GB, one time). It reads the text of documents to choose a document folder and suggest a clear name. A suggested name is used only if it matches words in the file. Moves Gemma influenced always wait for your review, and TabPFN learns from your decisions how far to trust them.
+Gemma runs locally through [Ollama](https://ollama.com) (*Settings → Local AI → Set up*, about 4.3 GB, one time). It reads PDFs, Word documents, slides and spreadsheets, and looks at pictures and screenshots, then suggests a clear name for each (and a folder for documents). Names for documents must use words from the file; picture names keep the date the camera or screenshot gave them. Every name is a suggestion: one click keeps or drops it. Moves Gemma influenced always wait for your review, and TabPFN learns from your decisions how far to trust them.
 
 ---
 
@@ -71,8 +71,10 @@ Intel Macs: [run from source](#run-from-source). The Mac app is built and tested
 **Organize a folder**
 
 1. Open **Organize**, pick a folder (or click *Downloads*), and click **Scan folder**. Scanning never changes anything.
-2. Review the plan. Untick anything you don't want moved; click ⓘ to see why a file goes where it goes.
+2. Review the plan. Untick anything you don't want moved; click a **Rename to …** chip to keep a file's current name; click ⓘ to see why a file goes where it goes.
 3. Click **Move files**. Changed your mind? Click **Undo** — now, or later from **History**.
+
+![Suggested names: one click keeps or drops each](docs/screenshots/names.png)
 
 **Free up space**
 
@@ -90,7 +92,7 @@ Open **Automation** to tidy a folder every day, turn on the right-click menu ent
 Open **Settings** (bottom-left) to change the default folder, the theme (System / Light / Dark), and which features are on.
 
 - **Smart predictions (TabPFN)** — in the Full edition. Turn it on or off, choose how careful the automatic tidy is, and click **Check now** to see how well it predicts your choices (see [Partner technology](#partner-technology)).
-- **Local AI (Gemma 4)** — optional. Reads documents to sort and name them better. Click **Set up** once: it installs [Ollama](https://ollama.com) (on a Mac through Homebrew, or it points you to Ollama's Mac download) and downloads Gemma 4 (about 4.3 GB). It runs entirely on your PC and can only *suggest*; you still approve every move.
+- **Local AI (Gemma 4)** — optional. Reads documents, slides, spreadsheets and pictures to sort and name them better (*Suggest names from what's inside* can be turned off). Click **Set up** once: it installs [Ollama](https://ollama.com) (on a Mac through Homebrew, or it points you to Ollama's Mac download) and downloads Gemma 4 (about 4.3 GB). It runs entirely on your PC and can only *suggest*; you still approve every move.
 - **Privacy & learning** — see or forget what Lazyfold learned from your corrections.
 
 ![Settings](docs/screenshots/settings.png)
