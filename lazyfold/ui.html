@@ -1025,7 +1025,9 @@ $("auto-now").onclick = async () => {
     body: `Lazyfold moves only the kinds of file you trust in ${folder}. Everything else waits for your review. You can undo it from History.` }))) return;
   $("auto-now").disabled = true; const out = $("auto-outcome"); out.classList.remove("hidden"); out.textContent = "Working…";
   try { const { job } = await api("/api/auto", { folder }); const r = (await waitJob(job)).result;
-    out.textContent = r.error ? r.error : `Moved ${plural(r.moved, "file")}; ${r.waiting} waiting for your review.`; loadAutomation(); }
+    out.textContent = r.error ? r.error : `Moved ${plural(r.moved, "file")}; ${r.waiting} waiting for your review.`
+      + (r.held_by_predictor ? ` TabPFN held back ${r.held_by_predictor} because you usually change files like these.` : "");
+    loadAutomation(); }
   catch (e) { handleError(e); out.classList.add("hidden"); }
   finally { $("auto-now").disabled = false; }
 };
