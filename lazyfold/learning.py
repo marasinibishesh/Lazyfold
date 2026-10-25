@@ -255,8 +255,9 @@ def _describe(rule: Rule) -> str:
     return f"you moved {what} to {CATEGORIES[rule.outcome]} {times} before"
 
 
-def apply_learned(rec: FileRecord, decision: Decision) -> Decision:
-    """Return a Decision steered by a matching learned rule, else `decision`."""
+def apply_learned(rec: FileRecord, decision: Decision, *, keep: bool = True) -> Decision:
+    """Return a Decision steered by a matching learned rule, else `decision`.
+    keep=False skips "leave it" rules (TabPFN learns those instead)."""
     if not _usable(rec):
         return decision
     rules = _cached_rules()
@@ -266,6 +267,8 @@ def apply_learned(rec: FileRecord, decision: Decision) -> Decision:
         return decision
     reason = "learned: " + _describe(rule)
     if rule.outcome == KEEP:
+        if not keep:
+            return decision
         return Decision(None, 0.0, [*decision.reasons, reason], None)
     if rec.size == 0:
         return decision  # empty files (often failed downloads) stay capped below the threshold

@@ -166,3 +166,29 @@ def test_switching_a_suggestion_off_keeps_the_current_name(tmp_path):
     out = service.apply_edits(plan, {"Presentation1.pptx"}, {"Presentation1.pptx": "Presentation1"}, {})
     moved = [x for x in out.proposals if x.rel_path == "Presentation1.pptx"][0]
     assert moved.new_name == "Presentation1.pptx" and moved.dest_rel.endswith("Presentation1.pptx")
+
+
+# --------------------------------------------------------------------------- learned rules vs TabPFN
+
+def test_leave_it_rules_step_aside_when_tabpfn_is_on(monkeypatch):
+    from lazyfold import learning, planner
+    rule = learning.Rule(key="ext:.png", outcome=learning.KEEP, support=3, contradictions=0)
+    monkeypatch.setattr(learning, "_cached_rules", lambda: {"ext:.png": rule})
+    rec = _rec("Screenshot 1.png", sniffed="png")
+    base = Decision("screenshots", 0.95, ["name looks like a screenshot"])
+    assert learning.apply_learned(rec, base).category is None  # rules alone: leave it
+    kept = learning.apply_learned(rec, base, keep=False)
+    assert kept.category == "screenshots" and not any(r.startswith("learned:") for r in kept.reasons)
+    monkeypatch.setattr("lazyfold.predict.available", lambda: (True, "ok"))
+    assert planner.PlanOptions.from_settings({"use_predictor": True}).learned_keep is False
+    assert planner.PlanOptions.from_settings({"use_predictor": False}).learned_keep is True
+    monkeypatch.setattr("lazyfold.predict.available", lambda: (False, "not installed"))
+    assert planner.PlanOptions.from_settings({"use_predictor": True}).learned_keep is True  # standard edition
+
+
+def test_folder_choices_still_become_rules_with_tabpfn_on(monkeypatch):
+    from lazyfold import learning
+    rule = learning.Rule(key="ext:.csv", outcome="finance", support=2, contradictions=0)
+    monkeypatch.setattr(learning, "_cached_rules", lambda: {"ext:.csv": rule})
+    d = learning.apply_learned(_rec("export.csv"), Decision("spreadsheets", 0.9, []), keep=False)
+    assert d.category == "finance"

@@ -71,6 +71,11 @@ class PlanOptions:
     photos_by_date: bool = False  # Images/2026/10 from the EXIF date
     near_duplicates: bool = False  # similar-but-not-identical copies -> Duplicates, unticked
     learned_rules: bool = False  # apply what the user taught by correcting earlier plans
+    # Learned "leave it where it is" rules. Off when TabPFN is on: then the
+    # approval predictor learns those softer patterns from the review history
+    # (and needs to keep seeing those files to learn them); folder choices
+    # still become rules either way.
+    learned_keep: bool = True
     unpack_zips: bool = False  # unpack safe .zip files into Archives/<name>/
     recycle_old_installers_days: int | None = None  # suggest recycling installers older than this
     installed: frozenset[str] | None = None  # override the installed-program list (tests)
@@ -80,8 +85,19 @@ class PlanOptions:
     def from_settings(cls, s: dict) -> "PlanOptions":
         days = s.get("recycle_old_installers_days")
         return cls(photos_by_date=bool(s.get("photos_by_date")), near_duplicates=bool(s.get("near_duplicates")),
-                   learned_rules=True, unpack_zips=bool(s.get("unpack_zip_archives")),
+                   learned_rules=True, learned_keep=not _predictor_on(s), unpack_zips=bool(s.get("unpack_zip_archives")),
                    recycle_old_installers_days=int(days) if days else None)
+
+
+def _predictor_on(s: dict) -> bool:
+    """Smart predictions switched on and TabPFN installed (cheap: no torch import)."""
+    if not s.get("use_predictor"):
+        return False
+    try:
+        from .predict import available
+        return available()[0]
+    except Exception:
+        return False
 
 
 def _recycle_reason(rec: FileRecord, opts: PlanOptions) -> str | None:
@@ -140,7 +156,7 @@ def build_plan(root: Path, records: list[FileRecord], *, classifier: Classifier 
 
         def classifier(rec: FileRecord) -> Decision:  # noqa: F811 - wraps the given classifier
             base = inner(rec)
-            return apply_learned(rec, base)
+            return apply_learned(rec, base, keep=opts.learned_keep)
 
     def original_rank(r: FileRecord):
         # Names without copy markers first, then the earliest created, then the shortest.
